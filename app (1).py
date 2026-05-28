@@ -29,7 +29,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 aplikasi.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Set kredensial untuk Google Cloud Translation
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'firebase-credentials.json'
+credentials_path = 'firebase-credentials.json'
+if os.path.exists(credentials_path):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
 
 try:
     translate_client = translate.Client()
@@ -38,11 +40,18 @@ except Exception as e:
     translate_client = None
 
 # Inisialisasi Firebase
-cred = credentials.Certificate('firebase-credentials.json')
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://bridgesign-default-rtdb.firebaseio.com/',
-    'storageBucket': 'bridgesign.firebasestorage.app'
-})
+if os.path.exists(credentials_path):
+    cred = credentials.Certificate(credentials_path)
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://bridgesign-default-rtdb.firebaseio.com/',
+        'storageBucket': 'bridgesign.firebasestorage.app'
+    })
+else:
+    # Menggunakan Application Default Credentials (ADC) di server Google Cloud/Firebase
+    firebase_admin.initialize_app(options={
+        'databaseURL': 'https://bridgesign-default-rtdb.firebaseio.com/',
+        'storageBucket': 'bridgesign.firebasestorage.app'
+    })
 db = firestore.client()
 
 # Inisialisasi Gemini
