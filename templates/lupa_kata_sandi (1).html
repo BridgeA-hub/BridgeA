@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}BridgeSign - Lupa Kata Sandi{% endblock %}
+
+{% block content %}
+<div class="kartu-masuk">
+    <a href="javascript:history.back()" class="tombol-kembali">
+        <i class="ph ph-arrow-left"></i> Kembali
+    </a>
+    
+    <h2 class="judul-login">Lupa Kata Sandi</h2>
+    <p class="subjudul-login">Buat Kata Sandi Baru dibawah ini.</p>
+    
+    {% if error %}
+    <div style="background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; margin-bottom: 1rem; text-align: center; font-size: 0.9rem;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form class="form-login" id="formResetSandi" action="{{ url_for('lupa_kata_sandi') }}" method="POST">
+        <div class="grup-input grup-input-abu">
+            <div class="ikon-input">
+                <i class="ph ph-lock-key"></i>
+            </div>
+            <input type="password" id="password_baru" name="password" placeholder="Masukan Kata Sandi Baru..." required>
+        </div>
+        
+        <div class="grup-input grup-input-abu">
+            <div class="ikon-input">
+                <i class="ph ph-lock-key"></i>
+            </div>
+            <input type="password" id="konfirmasi_password" placeholder="Konfirmasi Kata Sandi Baru..." required>
+        </div>
+        
+        <div style="margin-top: 0.5rem;">
+            <p class="teks-bantuan">Masukkan nomor WhatsApp yang terdaftar. Kode verifikasi akan dikirim via WhatsApp.</p>
+            <div class="grup-input grup-input-abu">
+                <span class="teks-prefix">+62</span>
+                <input type="tel" id="nomor_wa" name="no_wa" placeholder="Nomor WhatsApp..." required>
+            </div>
+        </div>
+        
+        <button type="button" onclick="kirimOTP()" class="tombol-utama">Kirim Kode Verifikasi</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- SweetAlert2 untuk Alert yang lebih cantik (jika tersedia, kalau tidak pakai bawaan browser) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    async function kirimOTP() {
+        const passBaru = document.getElementById('password_baru').value;
+        const passKonfirm = document.getElementById('konfirmasi_password').value;
+        let noWA = document.getElementById('nomor_wa').value;
+        
+        if (!passBaru || !passKonfirm || !noWA) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Belum Lengkap',
+                text: 'Harap isi semua kolom terlebih dahulu!'
+            });
+            return;
+        }
+        
+        if (passBaru !== passKonfirm) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Kata Sandi Berbeda',
+                text: 'Konfirmasi kata sandi tidak cocok dengan kata sandi baru!'
+            });
+            return;
+        }
+        
+        // Cek dulu apakah nomor WA terdaftar di database
+        try {
+            Swal.fire({
+                title: 'Memeriksa Data...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading()
+                }
+            });
+            
+            const response = await fetch('/api/cek_wa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ no_wa: noWA })
+            });
+            
+            const data = await response.json();
+            
+            if (data.exists) {
+                // Simulasikan Kode OTP terkirim
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Kode Terkirim!',
+                    text: 'Kode verifikasi OTP Simulasi: 1234',
+                    confirmButtonText: 'Masukkan Kode'
+                }).then(() => {
+                    mintaKodeOTP();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Nomor WhatsApp tidak terdaftar di sistem kami.'
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Error', 'Terjadi kesalahan jaringan', 'error');
+        }
+    }
+    
+    async function mintaKodeOTP() {
+        const { value: kodeOTP } = await Swal.fire({
+            title: 'Masukkan Kode OTP',
+            input: 'text',
+            inputLabel: 'Masukkan 4 digit kode simulasi yang muncul sebelumnya (1234)',
+            inputPlaceholder: 'Contoh: 1234',
+            showCancelButton: true,
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Kode OTP tidak boleh kosong!'
+                }
+            }
+        });
+        
+        if (kodeOTP) {
+            if (kodeOTP === '1234') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Verifikasi Berhasil',
+                    text: 'Sandi baru Anda akan segera disimpan.',
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    // Submit form asli
+                    document.getElementById('formResetSandi').submit();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kode Salah',
+                    text: 'Kode verifikasi yang dimasukkan tidak cocok.',
+                    confirmButtonText: 'Coba Lagi'
+                }).then(() => {
+                    mintaKodeOTP();
+                });
+            }
+        }
+    }
+</script>
+{% endblock %}

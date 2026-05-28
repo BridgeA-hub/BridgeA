@@ -1,0 +1,22 @@
+{% extends 'dashboard_base.html' %}
+
+{% block sidebar_profil %}
+    <div class="profil-img">
+        AD
+        <div class="status-dot"></div>
+    </div>
+    <div class="profil-nama">Nama Admin</div>
+    <div class="profil-nip">NIP...</div>
+{% endblock %}
+
+{% block sidebar_nav %}
+    <a href="{{ url_for('dashboard_admin') }}" class="nav-item {% if request.endpoint == 'dashboard_admin' %}aktif{% endif %}">
+        <i class="ph ph-house"></i> <span>Beranda</span>
+    </a>
+    <a href="{{ url_for('kelola_guru') }}" class="nav-item {% if request.endpoint == 'kelola_guru' %}aktif{% endif %}">
+        <i class="ph ph-users-three"></i> <span>Kelola Guru</span>
+    </a>
+    <a href="{{ url_for('kelola_kelas') }}" class="nav-item {% if request.endpoint == 'kelola_kelas' %}aktif{% endif %}">
+        <i class="ph ph-chalkboard-teacher"></i> <span>Kelola Kelas</span>
+    </a>
+{% endblock %}

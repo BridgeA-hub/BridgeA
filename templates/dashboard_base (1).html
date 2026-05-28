@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BridgeSign - Dashboard{% endblock %}</title>
+    <!-- Include main style variables -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Ikon Phosphor -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="dasbor-body">
+    <!-- Header Atas -->
+    <header class="header-dasbor">
+        <!-- Bentuk dekoratif geometris -->
+        <div class="bentuk bentuk-kiri-utama bentuk-anim-1"></div>
+        <div class="bentuk bentuk-kiri-aksen bentuk-anim-2"></div>
+        
+        <div class="bentuk bentuk-kanan-utama bentuk-anim-1"></div>
+        <div class="bentuk bentuk-kanan-aksen bentuk-anim-2"></div>
+
+        <div class="header-konten" style="position: relative; z-index: 2;">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="BridgeA Logo" class="logo-img">
+            <p class="subjudul">Pembelajaran Bahasa Inggris Interaktif untuk Murid dengan Hambatan Pendengaran</p>
+        </div>
+    </header>
+
+    <div class="wadah-utama">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Dashboard</span>
+                <i class="ph ph-list" id="toggleSidebar" style="cursor: pointer;"></i>
+            </div>
+            
+            <div class="sidebar-profil">
+                {% block sidebar_profil %}{% endblock %}
+            </div>
+            
+            <nav class="navigasi">
+                {% block sidebar_nav %}{% endblock %}
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="tombol-keluar">
+                    <i class="ph ph-arrow-left"></i> <span>Keluar</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Konten Utama -->
+        <main class="konten-dasbor">
+            {% block konten_dashboard %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Script tambahan untuk modal/interaksi (jika ada) -->
+    <script>
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mini');
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
