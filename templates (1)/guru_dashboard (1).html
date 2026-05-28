@@ -1,0 +1,51 @@
+{% extends 'guru_base.html' %}
+
+{% block konten_dashboard %}
+<div class="header-tabel" style="margin-bottom: 2rem; border-bottom: none; display: block; padding-left: 0;">
+    <h2 style="font-size: 1.4rem; font-weight: 700; color: var(--hitam-teks);">Selamat Datang, {{ guru.nama }}!</h2>
+</div>
+
+<div style="background-color: var(--putih); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
+    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--hitam-teks); margin-bottom: 1.5rem;">Jadwal Mengajar</h3>
+    
+    <div style="display: flex; flex-direction: column;">
+        {% for kelas in kelas_guru %}
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 0; border-bottom: 1px solid #e2e8f0; {% if loop.last %}border-bottom: none; padding-bottom: 0;{% endif %} {% if loop.first %}padding-top: 0;{% endif %}">
+            
+            <!-- Bagian Kiri (Ikon + Teks) -->
+            <div style="display: flex; align-items: center; gap: 1.2rem;">
+                <!-- Ikon Ilustrasi -->
+                <div style="width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <i class="ph-duotone ph-chalkboard-teacher" style="font-size: 3rem; color: #3b82f6;"></i>
+                </div>
+                
+                <!-- Detail Kelas -->
+                <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                    <span style="font-size: 0.9rem; color: #64748b;">{{ kelas.jadwal_hari }}</span>
+                    <span style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">{{ kelas.nama_kelas }}</span>
+                    <span style="font-size: 0.9rem; color: #475569;">{{ kelas.jadwal_waktu_mulai }} - {{ kelas.jadwal_waktu_selesai }}</span>
+                </div>
+            </div>
+            
+            <!-- Bagian Kanan (Tombol Mulai) -->
+            <div>
+                {% if kelas.jadwal_hari == hari_ini %}
+                <a href="{{ url_for('sesi_stt', nama_kelas=kelas.nama_kelas) }}" style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #2563eb; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; text-decoration: none; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);">
+                    <i class="ph-fill ph-play" style="font-size: 1.1rem;"></i> Mulai Sesi Mengajar
+                </a>
+                {% else %}
+                <button disabled style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #94a3b8; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; border: none; cursor: not-allowed;">
+                    <i class="ph-fill ph-lock-key" style="font-size: 1.1rem;"></i> Belum Sesuai Jadwal
+                </button>
+                {% endif %}
+            </div>
+            
+        </div>
+        {% else %}
+        <div style="padding: 2rem; text-align: center; color: #64748b;">
+            Belum ada kelas yang ditugaskan kepada Anda.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
