@@ -117,6 +117,19 @@
     </div>
 </div>
 
+<script id="riwayat-store-data" type="application/json">
+{
+    {% for riwayat in daftar_riwayat %}
+    "{{ riwayat.id }}": {
+        "waktu": "{{ riwayat.tanggal_format }}",
+        "riwayat": {{ riwayat.riwayat | tojson }},
+        "catatan": {{ riwayat.catatan | default('Tidak ada catatan.', true) | tojson }},
+        "feedback": {{ riwayat.feedback_kepsek | default('', true) | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+}
+</script>
+
 <script>
     // Ambil elemen HTML
     const modalDetail = document.getElementById('modalDetail');
@@ -134,29 +147,8 @@
         }
     });
 
-    // Fungsi untuk membaca data aman (base64) dari backend Python
-    function decodeData(b64) {
-        if (!b64) return null;
-        try {
-            // Cara simple decode base64 yang support karakter teks khusus
-            return JSON.parse(decodeURIComponent(escape(atob(b64))));
-        } catch(e) {
-            console.error("Error decoding base64 data:", e);
-            return null;
-        }
-    }
-
     // Objek untuk menampung semua riwayat dari database
-    const riwayatStore = {
-        {% for riwayat in daftar_riwayat %}
-        "{{ riwayat.id }}": {
-            waktu: "{{ riwayat.tanggal_format }}",
-            riwayat: decodeData("{{ riwayat.riwayat_b64 | default('', true) }}"),
-            catatan: decodeData("{{ riwayat.catatan_b64 | default('', true) }}"),
-            feedback: decodeData("{{ riwayat.feedback_b64 | default('', true) }}")
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    };
+    const riwayatStore = JSON.parse(document.getElementById('riwayat-store-data').textContent);
     
     let namaFilePdf = 'Riwayat.pdf';
 
