@@ -2,11 +2,11 @@
 
 {% block sidebar_profil %}
     <div class="profil-img">
-        {{ session.logged_in_user.nama[:2]|upper if session.logged_in_user and session.logged_in_user.nama else 'AD' }}
+        {{ session.get('logged_in_user', {}).get('nama')[:2]|upper if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nama') else 'AD' }}
         <div class="status-dot"></div>
     </div>
-    <div class="profil-nama">{{ session.logged_in_user.nama if session.logged_in_user and session.logged_in_user.nama else 'Nama Admin' }}</div>
-    <div class="profil-nip">NIP. {{ session.logged_in_user.nip if session.logged_in_user and session.logged_in_user.nip else '-' }}</div>
+    <div class="profil-nama">{{ session.get('logged_in_user', {}).get('nama') if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nama') else 'Nama Admin' }}</div>
+    <div class="profil-nip">NIP. {{ session.get('logged_in_user', {}).get('nip') if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nip') else '-' }}</div>
 {% endblock %}
 
 {% block sidebar_nav %}
