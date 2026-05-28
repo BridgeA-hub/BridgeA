@@ -50,9 +50,15 @@
                         <button onclick="bukaDetail('{{ riwayat.id }}')" style="background: none; border: none; cursor: pointer; color: #1e293b; font-size: 1.25rem; padding: 4px; transition: color 0.2s;" title="Lihat Detail">
                             <i class="ph ph-eye"></i>
                         </button>
-                        <button onclick="bukaFeedback('{{ riwayat.id }}')" style="background: none; border: none; cursor: pointer; color: {% if riwayat.has_feedback %}#16a34a{% else %}#3b82f6{% endif %}; font-size: 1.25rem; padding: 4px; transition: color 0.2s;" title="{% if riwayat.has_feedback %}Edit Feedback{% else %}Beri Feedback{% endif %}">
+                        {% if riwayat.has_feedback %}
+                        <button onclick="bukaFeedback('{{ riwayat.id }}')" style="background: none; border: none; cursor: pointer; color: #16a34a; font-size: 1.25rem; padding: 4px; transition: color 0.2s;" title="Edit Feedback">
                             <i class="ph ph-pencil-simple"></i>
                         </button>
+                        {% else %}
+                        <button onclick="bukaFeedback('{{ riwayat.id }}')" style="background: none; border: none; cursor: pointer; color: #3b82f6; font-size: 1.25rem; padding: 4px; transition: color 0.2s;" title="Beri Feedback">
+                            <i class="ph ph-pencil-simple"></i>
+                        </button>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -129,7 +135,7 @@
     </div>
 </div>
 
-<script id="riwayat-store-data" type="application/json">
+<script id="riwayat-store-data" type="application/json-template">
 {
     {% for riwayat in daftar_riwayat %}
     "{{ riwayat.id }}": {
