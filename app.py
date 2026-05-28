@@ -22,6 +22,7 @@ load_dotenv()
 
 aplikasi = Flask(__name__)
 aplikasi.secret_key = os.getenv('SECRET_KEY', 'kunci_rahasia_bridgesign_default')
+aplikasi.config['SESSION_COOKIE_NAME'] = '__session'
 
 # Konfigurasi Upload Folder
 UPLOAD_FOLDER = os.path.join('static', 'uploads', 'modul')
@@ -1092,6 +1093,7 @@ def update_teks_realtime():
 
 @aplikasi.route('/logout')
 def logout():
+    session.clear()
     return redirect(url_for('halaman_utama'))
 
 if __name__ == '__main__':
