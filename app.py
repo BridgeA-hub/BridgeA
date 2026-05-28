@@ -4,7 +4,8 @@ from datetime import date, datetime
 # pyrefly: ignore [missing-import]
 import firebase_admin
 # pyrefly: ignore [missing-import]
-from firebase_admin import credentials, firestore, db as rtdb, storage
+from firebase_admin import credentials, db as rtdb, storage, firestore as firebase_firestore
+from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 import os
 import uuid
@@ -54,7 +55,7 @@ else:
         'databaseURL': 'https://bridgesign-default-rtdb.firebaseio.com/',
         'storageBucket': 'bridgesign.firebasestorage.app'
     })
-db = firestore.client()
+db = firebase_firestore.client()
 
 # Inisialisasi Gemini
 gemini_key = os.getenv('GEMINI_API_KEY')
@@ -625,7 +626,7 @@ def guru_tambah_folder():
 def guru_hapus_folder(id_kelas):
     try:
         db.collection('kelas').document(id_kelas).delete()
-    except Exception as e:
+    except Exception:
         pass
     return redirect(url_for('guru_riwayat'))
 
@@ -634,7 +635,7 @@ def guru_hapus_riwayat(id_riwayat):
     nama_kelas = request.args.get('nama_kelas', '')
     try:
         db.collection('riwayat_sesi').document(id_riwayat).delete()
-    except Exception as e:
+    except Exception:
         pass
     
     if nama_kelas:
@@ -1081,7 +1082,7 @@ def update_teks_realtime():
     data_masuk = request.json
     
     if not data_masuk or 'teks' not in data_masuk:
-         return jsonify({'error': 'Tidak ada teks yang dikirim'}), 400
+        return jsonify({'error': 'Tidak ada teks yang dikirim'}), 400
          
     teks_baru = data_masuk['teks']
     
