@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}BridgeSign - Masuk Sebagai{% endblock %}
+
+{% block content %}
+<div class="kartu-masuk">
+    <h2 class="judul-pilih-peran">Masuk Sebagai</h2>
+    <div class="pilihan-peran">
+        <a href="{{ url_for('login_admin') }}" class="tombol-peran">
+            <div class="ikon-peran">
+                <i class="ph ph-check-square-offset"></i>
+            </div>
+            <div class="teks-peran">
+                <h3>Administrator</h3>
+                <p>Mengelola pengguna, kelas, dan sistem</p>
+            </div>
+            <div class="panah-peran">
+                <i class="ph ph-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('login_kepsek') }}" class="tombol-peran">
+            <div class="ikon-peran">
+                <i class="ph ph-gear"></i>
+            </div>
+            <div class="teks-peran">
+                <h3>Kepala Sekolah</h3>
+                <p>Memantau pembelajaran dan memberikan feedback</p>
+            </div>
+            <div class="panah-peran">
+                <i class="ph ph-arrow-right"></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('login_guru') }}" class="tombol-peran">
+            <div class="ikon-peran">
+                <i class="ph ph-user"></i>
+            </div>
+            <div class="teks-peran">
+                <h3>Guru</h3>
+                <p>Menggunakan aplikasi untuk proses pembelajaran</p>
+            </div>
+            <div class="panah-peran">
+                <i class="ph ph-arrow-right"></i>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
