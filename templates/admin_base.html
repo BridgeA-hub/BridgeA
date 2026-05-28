@@ -2,11 +2,11 @@
 
 {% block sidebar_profil %}
     <div class="profil-img">
-        AD
+        {{ session.logged_in_user.nama[:2]|upper if session.logged_in_user and session.logged_in_user.nama else 'AD' }}
         <div class="status-dot"></div>
     </div>
-    <div class="profil-nama">Nama Admin</div>
-    <div class="profil-nip">NIP...</div>
+    <div class="profil-nama">{{ session.logged_in_user.nama if session.logged_in_user and session.logged_in_user.nama else 'Nama Admin' }}</div>
+    <div class="profil-nip">NIP. {{ session.logged_in_user.nip if session.logged_in_user and session.logged_in_user.nip else '-' }}</div>
 {% endblock %}
 
 {% block sidebar_nav %}
