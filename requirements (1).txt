@@ -1,5 +1,0 @@
-Flask
-firebase-admin
-python-dotenv
-google-cloud-translate
-google-generativeai
