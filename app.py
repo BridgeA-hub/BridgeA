@@ -5,6 +5,7 @@ from datetime import date, datetime
 import firebase_admin
 # pyrefly: ignore [missing-import]
 from firebase_admin import credentials, firestore, db as rtdb, storage
+from google.cloud.firestore_v1.base_query import FieldFilter
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -21,7 +22,7 @@ import base64
 load_dotenv()
 
 aplikasi = Flask(__name__)
-aplikasi.secret_key = os.getenv('SECRET_KEY', 'kunci_rahasia_bridgesign_default')
+aplikasi.secret_key = os.getenv('SECRET_KEY', 'kunci_rahasia_bridgea_default')
 aplikasi.config['SESSION_COOKIE_NAME'] = '__session'
 
 # Konfigurasi Upload Folder
@@ -73,7 +74,7 @@ def login_admin():
         nip = request.form.get('nip')
         password = request.form.get('password')
         
-        admin_ref = db.collection('admin').where('nip', '==', nip).where('password', '==', password).stream()
+        admin_ref = db.collection('admin').where(filter=FieldFilter('nip', '==', nip)).where(filter=FieldFilter('password', '==', password)).stream()
         admin_ditemukan = False
         admin_data = None
         for doc in admin_ref:
@@ -98,7 +99,7 @@ def login_kepsek():
         nip = request.form.get('nip')
         password = request.form.get('password')
         
-        kepsek_ref = db.collection('kepsek').where('nip', '==', nip).where('password', '==', password).stream()
+        kepsek_ref = db.collection('kepsek').where(filter=FieldFilter('nip', '==', nip)).where(filter=FieldFilter('password', '==', password)).stream()
         kepsek_ditemukan = False
         kepsek_data = None
         for doc in kepsek_ref:
@@ -123,7 +124,7 @@ def login_guru():
         nip = request.form.get('nip')
         password = request.form.get('password')
         
-        gurus_ref = db.collection('guru').where('nip', '==', nip).where('password', '==', password).stream()
+        gurus_ref = db.collection('guru').where(filter=FieldFilter('nip', '==', nip)).where(filter=FieldFilter('password', '==', password)).stream()
         guru_ditemukan = False
         guru_data = None
         for doc in gurus_ref:
@@ -645,7 +646,7 @@ def guru_riwayat_kelas(nama_kelas):
     logged_in = session.get('logged_in_user')  # type: ignore  # type: ignore
     guru_aktif = logged_in if isinstance(logged_in, dict) else {'nama': 'Guru Belum Ada', 'nip': '-'}
     # Ambil data dari Firebase tanpa order_by untuk menghindari error Index Firestore
-    semua_dokumen = db.collection('riwayat_sesi').where('nama_kelas', '==', nama_kelas).stream()
+    semua_dokumen = db.collection('riwayat_sesi').where(filter=FieldFilter('nama_kelas', '==', nama_kelas)).stream()
     daftar_riwayat = []
     
     # Kamus buat ganti nama hari dan bulan ke bahasa Indonesia
