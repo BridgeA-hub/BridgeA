@@ -5,10 +5,13 @@ from datetime import date, datetime
 import firebase_admin
 # pyrefly: ignore [missing-import]
 from firebase_admin import credentials, db as rtdb, storage, firestore as firebase_firestore
+# pyrefly: ignore [missing-import]
 from google.cloud import firestore
+# pyrefly: ignore [missing-import]
 from google.cloud.firestore_v1.base_query import FieldFilter
 import os
 import uuid
+# pyrefly: ignore [missing-import]
 from werkzeug.utils import secure_filename
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
@@ -63,6 +66,25 @@ if gemini_key:
     genai.configure(api_key=gemini_key)
 else:
     print("Peringatan: GEMINI_API_KEY tidak ditemukan!")
+
+@aplikasi.before_request
+def batasi_akses():
+    rute = request.path
+    
+    # Batasi akses rute admin
+    if rute.startswith('/admin'):
+        if session.get('role') != 'admin':
+            return redirect(url_for('login_admin'))
+            
+    # Batasi akses rute kepala sekolah
+    elif rute.startswith('/kepsek'):
+        if session.get('role') != 'kepala-sekolah':
+            return redirect(url_for('login_kepsek'))
+            
+    # Batasi akses rute guru
+    elif rute.startswith('/guru'):
+        if session.get('role') != 'guru':
+            return redirect(url_for('login_guru'))
 
 @aplikasi.route('/')
 def halaman_utama():
