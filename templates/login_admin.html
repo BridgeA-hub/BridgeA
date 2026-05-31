@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}BridgeSign - Login Administrator{% endblock %}
+{% block title %}BridgeA - Login Administrator{% endblock %}
 
 {% block content %}
 <div class="kartu-masuk">
@@ -12,19 +12,19 @@
     
     <h2 class="judul-login">Log In</h2>
     
-    <form class="form-login" action="#" method="POST">
+    <form class="form-login" action="#" method="POST" autocomplete="off">
         <div class="grup-input">
             <div class="ikon-input">
                 <i class="ph ph-user"></i>
             </div>
-            <input type="text" name="nip" placeholder="Masukan NIP..." required>
+            <input type="text" name="nip" placeholder="Masukan NIP..." autocomplete="off" required>
         </div>
         
         <div class="grup-input">
             <div class="ikon-input" style="cursor: pointer;" onclick="togglePassword(this)">
                 <i class="ph ph-eye-slash"></i>
             </div>
-            <input type="password" name="password" placeholder="Masukan Kata Sandi..." required>
+            <input type="password" name="password" placeholder="Masukan Kata Sandi..." autocomplete="new-password" required>
         </div>
         
         {% if error %}
