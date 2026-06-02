@@ -75,7 +75,7 @@ def kirim_wa_fonnte(target, message):
     token = os.getenv('FONNTE_API_TOKEN')
     if not token:
         print("Peringatan: FONNTE_API_TOKEN tidak diatur di file .env.")
-        return False
+        return False, "TOKEN_NOT_CONFIGURED"
         
     url = "https://api.fonnte.com/send"
     headers = {
@@ -89,10 +89,12 @@ def kirim_wa_fonnte(target, message):
         response = requests.post(url, headers=headers, data=payload)
         response_json = response.json()
         print(f"Fonnte Response: {response_json}")
-        return response_json.get('status', False)
+        status = response_json.get('status', False)
+        reason = response_json.get('reason') or response_json.get('detail') or 'Unknown error'
+        return status, reason
     except Exception as e:
         print(f"Error mengirim pesan Fonnte: {e}")
-        return False
+        return False, str(e)
 
 # Inisialisasi Gemini
 gemini_key = os.getenv('GEMINI_API_KEY')
@@ -303,12 +305,12 @@ def cek_wa():
             
             # 3. Kirim via Fonnte
             pesan = f"Kode OTP Anda untuk mereset kata sandi BridgeA ({target_role.upper()}) adalah: *{otp}*. Jangan bagikan kode ini kepada siapapun."
-            status_kirim = kirim_wa_fonnte(no_wa, pesan)
+            status_kirim, detail_kirim = kirim_wa_fonnte(no_wa, pesan)
             
             if status_kirim:
                 return jsonify({'exists': True, 'sent': True})
             else:
-                return jsonify({'exists': True, 'sent': False, 'message': 'Gagal mengirim OTP melalui WhatsApp.'})
+                return jsonify({'exists': True, 'sent': False, 'message': f'Gagal mengirim OTP: {detail_kirim}'})
                 
     return jsonify({'exists': False})
 
