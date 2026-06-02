@@ -4,3 +4,4 @@ python-dotenv
 google-cloud-translate
 google-generativeai
 gunicorn
+requests

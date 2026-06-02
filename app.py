@@ -22,6 +22,8 @@ import google.generativeai as genai
 import json
 import re
 import base64
+import random
+import requests
 
 load_dotenv()
 
@@ -59,6 +61,38 @@ else:
         'storageBucket': 'bridgesign.firebasestorage.app'
     })
 db = firebase_firestore.client()
+
+def format_phone_number(phone):
+    # Bersihkan karakter non-digit
+    clean_phone = re.sub(r'\D', '', phone)
+    if clean_phone.startswith('0'):
+        clean_phone = '62' + clean_phone[1:]
+    elif clean_phone.startswith('8'):
+        clean_phone = '62' + clean_phone
+    return clean_phone
+
+def kirim_wa_fonnte(target, message):
+    token = os.getenv('FONNTE_API_TOKEN')
+    if not token:
+        print("Peringatan: FONNTE_API_TOKEN tidak diatur di file .env.")
+        return False
+        
+    url = "https://api.fonnte.com/send"
+    headers = {
+        "Authorization": token
+    }
+    payload = {
+        "target": format_phone_number(target),
+        "message": message
+    }
+    try:
+        response = requests.post(url, headers=headers, data=payload)
+        response_json = response.json()
+        print(f"Fonnte Response: {response_json}")
+        return response_json.get('status', False)
+    except Exception as e:
+        print(f"Error mengirim pesan Fonnte: {e}")
+        return False
 
 # Inisialisasi Gemini
 gemini_key = os.getenv('GEMINI_API_KEY')
@@ -170,6 +204,18 @@ def lupa_kata_sandi():
     if request.method == 'POST':
         no_wa = request.form.get('no_wa', '').strip()
         password = request.form.get('password', '').strip()
+        otp_input = request.form.get('otp', '').strip()
+        
+        session_otp = session.get('otp_code')
+        session_wa = session.get('otp_wa')
+        
+        # Validasi OTP terlebih dahulu
+        if not session_otp or not session_wa or session_otp != otp_input or not no_wa.endswith(session_wa[-8:]):
+            return render_template('lupa_kata_sandi.html', error="Verifikasi OTP gagal, tidak cocok, atau sudah kedaluwarsa.")
+            
+        # Hapus session OTP setelah berhasil digunakan
+        session.pop('otp_code', None)
+        session.pop('otp_wa', None)
         
         if no_wa and password:
             for doc in db.collection('guru').stream():
@@ -194,9 +240,24 @@ def cek_wa():
             data_guru = doc.to_dict()
             wa_db = str(data_guru.get('no_wa', '')).strip()
             if wa_db and len(wa_db) >= 8 and len(no_wa) >= 8 and no_wa.endswith(wa_db[-8:]):
-                return jsonify({'exists': True})
+                # 1. Generate OTP
+                otp = str(random.randint(1000, 9999))
+                
+                # 2. Simpan ke session
+                session['otp_code'] = otp
+                session['otp_wa'] = no_wa
+                
+                # 3. Kirim via Fonnte
+                pesan = f"Kode OTP Anda untuk mereset kata sandi BridgeA adalah: *{otp}*. Jangan bagikan kode ini kepada siapapun."
+                status_kirim = kirim_wa_fonnte(no_wa, pesan)
+                
+                if status_kirim:
+                    return jsonify({'exists': True, 'sent': True})
+                else:
+                    return jsonify({'exists': True, 'sent': False, 'message': 'Gagal mengirim OTP melalui WhatsApp.'})
                 
     return jsonify({'exists': False})
+
 
 @aplikasi.route('/admin/dashboard')
 def dashboard_admin():
