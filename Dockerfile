@@ -9,4 +9,5 @@ COPY . .
 
 ENV PORT=8080
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:aplikasi"]
+# 2 workers x 4 threads = bisa handle 8 request sekaligus
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "--worker-class", "gthread", "app:aplikasi"]

@@ -24,6 +24,8 @@ import re
 import base64
 import random
 import requests
+import time
+import threading
 
 load_dotenv()
 
@@ -61,6 +63,33 @@ else:
         'storageBucket': 'bridgesign.firebasestorage.app'
     })
 db = firebase_firestore.client()
+
+# =====================================================
+# SIMPLE IN-MEMORY CACHE untuk data Firestore
+# Mengurangi query berulang ke database setiap request
+# =====================================================
+_cache = {}
+_cache_lock = threading.Lock()
+CACHE_TTL = 300  # 5 menit dalam detik
+
+def get_cache(key):
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry and (time.time() - entry['time']) < CACHE_TTL:
+            return entry['data']
+        return None
+
+def set_cache(key, data):
+    with _cache_lock:
+        _cache[key] = {'data': data, 'time': time.time()}
+
+def clear_cache(key=None):
+    with _cache_lock:
+        if key:
+            _cache.pop(key, None)
+        else:
+            _cache.clear()
+
 
 def format_phone_number(phone):
     # Bersihkan karakter non-digit
@@ -293,8 +322,21 @@ def cek_wa():
                 break
                 
         if target_role and target_doc_id:
+            # Cek rate limiting: cegah kirim OTP ke nomor yang sama dalam 2 menit
+            rate_key = f"otp_sent_{format_phone_number(no_wa)}"
+            last_sent = get_cache(rate_key)
+            if last_sent:
+                sisa_detik = int(30 - (time.time() - last_sent))
+                if sisa_detik > 0:
+                    return jsonify({
+                        'exists': True, 
+                        'sent': False, 
+                        'message': f'Tunggu {sisa_detik} detik sebelum kirim OTP lagi.'
+                    })
+
             # 1. Generate OTP
             otp = str(random.randint(1000, 9999))
+
             
             # 2. Simpan ke session
             session['otp_code'] = otp
@@ -304,7 +346,6 @@ def cek_wa():
             session['otp_doc_id'] = target_doc_id
             
             # 3. Kirim via Fonnte - gunakan pesan natural agar tidak terdeteksi spam
-            import time
             templates_pesan = [
                 f"Halo! Kode verifikasi BridgeA kamu adalah *{otp}*. Berlaku 5 menit ya 🙏",
                 f"Hai, ini kode OTP BridgeA kamu: *{otp}*. Jangan kasih ke siapapun ya!",
@@ -312,11 +353,11 @@ def cek_wa():
                 f"BridgeA - Kode verifikasi: *{otp}*. Kode berlaku selama 5 menit.",
             ]
             pesan = random.choice(templates_pesan)
-            # Delay kecil sebelum kirim agar tidak terdeteksi bot
-            time.sleep(random.uniform(0.5, 1.5))
             status_kirim, detail_kirim = kirim_wa_fonnte(no_wa, pesan)
             
             if status_kirim:
+                # Catat waktu pengiriman untuk rate limiting (2 menit)
+                set_cache(rate_key, time.time())
                 return jsonify({'exists': True, 'sent': True})
             else:
                 return jsonify({'exists': True, 'sent': False, 'message': f'Gagal mengirim OTP: {detail_kirim}'})
@@ -326,42 +367,40 @@ def cek_wa():
 
 
 
-@aplikasi.route('/admin/dashboard')
-def dashboard_admin():
-    # Ambil data guru pakai cara loop standar biar gampang dibaca
-    gurus = []
-    for doc in db.collection('guru').stream():
-        gurus.append(doc.to_dict())
-        
-    # Ambil data kelas
-    kelas = []
-    for doc in db.collection('kelas').stream():
-        kelas.append(doc.to_dict())
-    
-    total_guru = len(gurus)
-    total_kelas = len(kelas)
-    
+def ambil_data_dashboard():
+    """Helper: Ambil data guru & kelas dengan caching 5 menit."""
+    gurus = get_cache('guru_list')
+    if gurus is None:
+        gurus = [doc.to_dict() for doc in db.collection('guru').stream()]
+        set_cache('guru_list', gurus)
+
+    kelas = get_cache('kelas_list')
+    if kelas is None:
+        kelas = [doc.to_dict() for doc in db.collection('kelas').stream()]
+        set_cache('kelas_list', kelas)
+
+    # Buat index guru by nama untuk O(1) lookup
+    guru_index = {str(g.get('nama', '')).lower(): g.get('nip', '-') for g in gurus}
+
     pemantauan_data = []
     for k in kelas:
         guru_nama = k.get('guru_pengajar', '')
-        nip = '-'
-        for g in gurus:
-            if str(g.get('nama', '')).lower() == guru_nama.lower():
-                nip = g.get('nip', '-')
-                break
-                
         pemantauan_data.append({
             'nama_guru': guru_nama,
-            'nip': nip,
+            'nip': guru_index.get(guru_nama.lower(), '-'),
             'nama_kelas': k.get('nama_kelas', ''),
             'jadwal_hari': k.get('jadwal_hari', ''),
             'jadwal_waktu_mulai': k.get('jadwal_waktu_mulai', ''),
             'jadwal_waktu_selesai': k.get('jadwal_waktu_selesai', '')
         })
+    return gurus, kelas, pemantauan_data
 
-    return render_template('admin_dashboard.html', 
-                           total_guru=total_guru, 
-                           total_kelas=total_kelas, 
+@aplikasi.route('/admin/dashboard')
+def dashboard_admin():
+    gurus, kelas, pemantauan_data = ambil_data_dashboard()
+    return render_template('admin_dashboard.html',
+                           total_guru=len(gurus),
+                           total_kelas=len(kelas),
                            pemantauan_data=pemantauan_data)
 
 @aplikasi.route('/admin/guru', methods=['GET', 'POST'])
@@ -378,6 +417,7 @@ def kelola_guru():
                 'no_wa': no_wa,
                 'password': password
             })
+            clear_cache('guru_list')  # invalidate cache
         return redirect(url_for('kelola_guru'))
     
     q = str(request.args.get('q', '')).lower()
@@ -406,11 +446,13 @@ def edit_guru(id):
             'no_wa': no_wa,
             'password': password
         })
+        clear_cache('guru_list')  # invalidate cache
     return redirect(url_for('kelola_guru'))
 
 @aplikasi.route('/admin/guru/hapus/<string:id>', methods=['POST'])
 def hapus_guru(id):
     db.collection('guru').document(id).delete()
+    clear_cache('guru_list')  # invalidate cache
     return redirect(url_for('kelola_guru'))
 
 @aplikasi.route('/admin/kelas', methods=['GET', 'POST'])
@@ -430,6 +472,7 @@ def kelola_kelas():
                 'jadwal_waktu_mulai': waktu_mulai,
                 'jadwal_waktu_selesai': waktu_selesai
             })
+            clear_cache('kelas_list')  # invalidate cache
         return redirect(url_for('kelola_kelas'))
     
     q = str(request.args.get('q', '')).lower()
@@ -461,47 +504,21 @@ def edit_kelas(id):
             'jadwal_waktu_mulai': waktu_mulai,
             'jadwal_waktu_selesai': waktu_selesai
         })
+        clear_cache('kelas_list')  # invalidate cache
     return redirect(url_for('kelola_kelas'))
 
 @aplikasi.route('/admin/kelas/hapus/<string:id>', methods=['POST'])
 def hapus_kelas(id):
     db.collection('kelas').document(id).delete()
+    clear_cache('kelas_list')  # invalidate cache
     return redirect(url_for('kelola_kelas'))
 
 @aplikasi.route('/kepsek/dashboard')
 def dashboard_kepsek():
-    gurus = []
-    for doc in db.collection('guru').stream():
-        gurus.append(doc.to_dict())
-        
-    kelas = []
-    for doc in db.collection('kelas').stream():
-        kelas.append(doc.to_dict())
-    
-    total_guru = len(gurus)
-    total_kelas = len(kelas)
-    
-    pemantauan_data = []
-    for k in kelas:
-        guru_nama = k.get('guru_pengajar', '')
-        nip = '-'
-        for g in gurus:
-            if str(g.get('nama', '')).lower() == guru_nama.lower():
-                nip = g.get('nip', '-')
-                break
-                
-        pemantauan_data.append({
-            'nama_guru': guru_nama,
-            'nip': nip,
-            'nama_kelas': k.get('nama_kelas', ''),
-            'jadwal_hari': k.get('jadwal_hari', ''),
-            'jadwal_waktu_mulai': k.get('jadwal_waktu_mulai', ''),
-            'jadwal_waktu_selesai': k.get('jadwal_waktu_selesai', '')
-        })
-
-    return render_template('kepsek_dashboard.html', 
-                           total_guru=total_guru, 
-                           total_kelas=total_kelas, 
+    gurus, kelas, pemantauan_data = ambil_data_dashboard()
+    return render_template('kepsek_dashboard.html',
+                           total_guru=len(gurus),
+                           total_kelas=len(kelas),
                            pemantauan_data=pemantauan_data)
 
 @aplikasi.route('/kepsek/guru')
