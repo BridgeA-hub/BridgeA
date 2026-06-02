@@ -204,26 +204,19 @@ def lupa_kata_sandi():
     if request.method == 'POST':
         no_wa = request.form.get('no_wa', '').strip()
         password = request.form.get('password', '').strip()
-        otp_input = request.form.get('otp', '').strip()
         nip = request.form.get('nip', '').strip()
         
-        session_otp = session.get('otp_code')
-        session_wa = session.get('otp_wa')
-        session_nip = session.get('otp_nip')
-        session_role = session.get('otp_role')
-        session_doc_id = session.get('otp_doc_id')
-        
-        # Validasi OTP secara ketat di backend
-        if (not session_otp or not session_wa or not session_nip or not session_role or not session_doc_id or
-            session_otp != otp_input or session_nip != nip or not no_wa.endswith(session_wa[-8:])):
-            return render_template('lupa_kata_sandi.html', error="Verifikasi OTP gagal, data tidak cocok, atau kode sudah kedaluwarsa.")
+        # Validasi apakah OTP sudah sukses diverifikasi lewat API sebelumnya
+        if not session.get('otp_verified') or session.get('otp_nip') != nip or not no_wa.endswith(session.get('otp_wa', '')[-8:]):
+            return render_template('lupa_kata_sandi.html', error="Verifikasi OTP gagal atau sesi telah kedaluwarsa.")
             
-        # Bersihkan session OTP
+        # Hapus session OTP setelah berhasil digunakan
         session.pop('otp_code', None)
         session.pop('otp_wa', None)
         session.pop('otp_nip', None)
-        session.pop('otp_role', None)
-        session.pop('otp_doc_id', None)
+        session_role = session.pop('otp_role', None)
+        session_doc_id = session.pop('otp_doc_id', None)
+        session.pop('otp_verified', None)
         
         try:
             # Update password dan daftarkan nomor WA jika belum terdaftar
@@ -243,6 +236,25 @@ def lupa_kata_sandi():
             return render_template('lupa_kata_sandi.html', error=f"Gagal memperbarui kata sandi: {e}")
             
     return render_template('lupa_kata_sandi.html')
+
+@aplikasi.route('/api/verifikasi_otp', methods=['POST'])
+def verifikasi_otp():
+    data_masuk = request.json
+    otp_input = str(data_masuk.get('otp', '')).strip()
+    no_wa = str(data_masuk.get('no_wa', '')).strip()
+    nip = str(data_masuk.get('nip', '')).strip()
+    
+    session_otp = session.get('otp_code')
+    session_wa = session.get('otp_wa')
+    session_nip = session.get('otp_nip')
+    
+    if (session_otp and session_wa and session_nip and 
+        session_otp == otp_input and session_nip == nip and no_wa.endswith(session_wa[-8:])):
+        # Tandai di session bahwa OTP sudah berhasil diverifikasi
+        session['otp_verified'] = True
+        return jsonify({'valid': True})
+        
+    return jsonify({'valid': False, 'message': 'Kode OTP yang dimasukkan salah.'})
 
 @aplikasi.route('/api/cek_wa', methods=['POST'])
 def cek_wa():
@@ -299,6 +311,7 @@ def cek_wa():
                 return jsonify({'exists': True, 'sent': False, 'message': 'Gagal mengirim OTP melalui WhatsApp.'})
                 
     return jsonify({'exists': False})
+
 
 
 
