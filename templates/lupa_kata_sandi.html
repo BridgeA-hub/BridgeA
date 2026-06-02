@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}BridgeSign - Lupa Kata Sandi{% endblock %}
+{% block title %}BridgeA - Lupa Kata Sandi{% endblock %}
 
 {% block content %}
 <div class="kartu-masuk">
@@ -18,25 +18,28 @@
     {% endif %}
 
     <form class="form-login" id="formResetSandi" action="{{ url_for('lupa_kata_sandi') }}" method="POST">
+        <!-- Input hidden untuk OTP -->
+        <input type="hidden" id="otp_input" name="otp">
+        
         <div class="grup-input grup-input-abu">
             <div class="ikon-input">
                 <i class="ph ph-lock-key"></i>
             </div>
-            <input type="password" id="password_baru" name="password" placeholder="Masukan Kata Sandi Baru..." required>
+            <input type="password" id="password_baru" name="password" placeholder="Masukan Kata Sandi Baru..." autocomplete="new-password" required>
         </div>
         
         <div class="grup-input grup-input-abu">
             <div class="ikon-input">
                 <i class="ph ph-lock-key"></i>
             </div>
-            <input type="password" id="konfirmasi_password" placeholder="Konfirmasi Kata Sandi Baru..." required>
+            <input type="password" id="konfirmasi_password" placeholder="Konfirmasi Kata Sandi Baru..." autocomplete="new-password" required>
         </div>
         
         <div style="margin-top: 0.5rem;">
             <p class="teks-bantuan">Masukkan nomor WhatsApp yang terdaftar. Kode verifikasi akan dikirim via WhatsApp.</p>
             <div class="grup-input grup-input-abu">
                 <span class="teks-prefix">+62</span>
-                <input type="tel" id="nomor_wa" name="no_wa" placeholder="Nomor WhatsApp..." required>
+                <input type="tel" id="nomor_wa" name="no_wa" placeholder="Nomor WhatsApp..." autocomplete="off" required>
             </div>
         </div>
         
@@ -72,10 +75,10 @@
             return;
         }
         
-        // Cek dulu apakah nomor WA terdaftar di database
+        // Cek dulu apakah nomor WA terdaftar di database dan kirim OTP via Fonnte
         try {
             Swal.fire({
-                title: 'Memeriksa Data...',
+                title: 'Memeriksa Data & Mengirim OTP...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading()
@@ -93,15 +96,22 @@
             const data = await response.json();
             
             if (data.exists) {
-                // Simulasikan Kode OTP terkirim
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Kode Terkirim!',
-                    text: 'Kode verifikasi OTP Simulasi: 1234',
-                    confirmButtonText: 'Masukkan Kode'
-                }).then(() => {
-                    mintaKodeOTP();
-                });
+                if (data.sent) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Kode Terkirim!',
+                        text: 'Kode verifikasi OTP telah dikirim ke nomor WhatsApp Anda.',
+                        confirmButtonText: 'Masukkan Kode'
+                    }).then(() => {
+                        mintaKodeOTP();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Mengirim OTP',
+                        text: data.message || 'Terjadi kesalahan saat mengirim OTP via Fonnte.'
+                    });
+                }
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -119,7 +129,7 @@
         const { value: kodeOTP } = await Swal.fire({
             title: 'Masukkan Kode OTP',
             input: 'text',
-            inputLabel: 'Masukkan 4 digit kode simulasi yang muncul sebelumnya (1234)',
+            inputLabel: 'Masukkan 4 digit kode OTP yang Anda terima di WhatsApp',
             inputPlaceholder: 'Contoh: 1234',
             showCancelButton: true,
             inputValidator: (value) => {
@@ -130,27 +140,19 @@
         });
         
         if (kodeOTP) {
-            if (kodeOTP === '1234') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Verifikasi Berhasil',
-                    text: 'Sandi baru Anda akan segera disimpan.',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    // Submit form asli
-                    document.getElementById('formResetSandi').submit();
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Kode Salah',
-                    text: 'Kode verifikasi yang dimasukkan tidak cocok.',
-                    confirmButtonText: 'Coba Lagi'
-                }).then(() => {
-                    mintaKodeOTP();
-                });
-            }
+            // Set input hidden otp dan submit form untuk divalidasi oleh backend
+            document.getElementById('otp_input').value = kodeOTP;
+            
+            Swal.fire({
+                title: 'Memverifikasi...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading()
+                }
+            });
+            
+            // Kirim form ke server untuk divalidasi dan diubah sandinya
+            document.getElementById('formResetSandi').submit();
         }
     }
 </script>
