@@ -135,6 +135,9 @@
     }
     
     async function mintaKodeOTP() {
+        const nip = document.getElementById('nip').value;
+        let noWA = document.getElementById('nomor_wa').value;
+        
         const { value: kodeOTP } = await Swal.fire({
             title: 'Masukkan Kode OTP',
             input: 'text',
@@ -149,19 +152,58 @@
         });
         
         if (kodeOTP) {
-            // Set input hidden otp dan submit form untuk divalidasi oleh backend
-            document.getElementById('otp_input').value = kodeOTP;
-            
             Swal.fire({
-                title: 'Memverifikasi...',
+                title: 'Memverifikasi Kode...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading()
                 }
             });
             
-            // Kirim form ke server untuk divalidasi dan diubah sandinya
-            document.getElementById('formResetSandi').submit();
+            try {
+                const response = await fetch('/api/verifikasi_otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ otp: kodeOTP, no_wa: noWA, nip: nip })
+                });
+                
+                const data = await response.json();
+                
+                if (data.valid) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Verifikasi Berhasil',
+                        text: 'Sandi baru Anda sedang disimpan...',
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        // Submit form asli karena verifikasi di backend sudah sukses
+                        document.getElementById('otp_input').value = kodeOTP;
+                        document.getElementById('formResetSandi').submit();
+                    });
+                } else {
+                    // Jika OTP salah, tawarkan untuk coba lagi atau kirim ulang
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Kode Salah',
+                        text: data.message || 'Kode verifikasi yang dimasukkan tidak cocok.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Coba Lagi',
+                        cancelButtonText: 'Kirim Ulang OTP baru'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            mintaKodeOTP(); // Coba ketik ulang
+                        } else if (result.dismiss === Swal.DismissReason.cancel) {
+                            kirimOTP(); // Kirim OTP baru via Fonnte
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'Gagal memverifikasi OTP', 'error');
+            }
         }
     }
 </script>
