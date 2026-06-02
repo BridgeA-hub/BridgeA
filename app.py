@@ -303,8 +303,17 @@ def cek_wa():
             session['otp_role'] = target_role
             session['otp_doc_id'] = target_doc_id
             
-            # 3. Kirim via Fonnte
-            pesan = f"Kode OTP Anda untuk mereset kata sandi BridgeA ({target_role.upper()}) adalah: *{otp}*. Jangan bagikan kode ini kepada siapapun."
+            # 3. Kirim via Fonnte - gunakan pesan natural agar tidak terdeteksi spam
+            import time
+            templates_pesan = [
+                f"Halo! Kode verifikasi BridgeA kamu adalah *{otp}*. Berlaku 5 menit ya 🙏",
+                f"Hai, ini kode OTP BridgeA kamu: *{otp}*. Jangan kasih ke siapapun ya!",
+                f"Kode masuk BridgeA: *{otp}* — Abaikan jika bukan kamu yang minta.",
+                f"BridgeA - Kode verifikasi: *{otp}*. Kode berlaku selama 5 menit.",
+            ]
+            pesan = random.choice(templates_pesan)
+            # Delay kecil sebelum kirim agar tidak terdeteksi bot
+            time.sleep(random.uniform(0.5, 1.5))
             status_kirim, detail_kirim = kirim_wa_fonnte(no_wa, pesan)
             
             if status_kirim:
