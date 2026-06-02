@@ -205,28 +205,42 @@ def lupa_kata_sandi():
         no_wa = request.form.get('no_wa', '').strip()
         password = request.form.get('password', '').strip()
         otp_input = request.form.get('otp', '').strip()
+        nip = request.form.get('nip', '').strip()
         
         session_otp = session.get('otp_code')
         session_wa = session.get('otp_wa')
+        session_nip = session.get('otp_nip')
+        session_role = session.get('otp_role')
+        session_doc_id = session.get('otp_doc_id')
         
-        # Validasi OTP terlebih dahulu
-        if not session_otp or not session_wa or session_otp != otp_input or not no_wa.endswith(session_wa[-8:]):
-            return render_template('lupa_kata_sandi.html', error="Verifikasi OTP gagal, tidak cocok, atau sudah kedaluwarsa.")
+        # Validasi OTP secara ketat di backend
+        if (not session_otp or not session_wa or not session_nip or not session_role or not session_doc_id or
+            session_otp != otp_input or session_nip != nip or not no_wa.endswith(session_wa[-8:])):
+            return render_template('lupa_kata_sandi.html', error="Verifikasi OTP gagal, data tidak cocok, atau kode sudah kedaluwarsa.")
             
-        # Hapus session OTP setelah berhasil digunakan
+        # Bersihkan session OTP
         session.pop('otp_code', None)
         session.pop('otp_wa', None)
+        session.pop('otp_nip', None)
+        session.pop('otp_role', None)
+        session.pop('otp_doc_id', None)
         
-        if no_wa and password:
-            for doc in db.collection('guru').stream():
-                data_guru = doc.to_dict()
-                wa_db = str(data_guru.get('no_wa', '')).strip()
-                # Cek apakah 8 digit terakhir WA cocok (untuk menoleransi perbedaan format +62/08)
-                if wa_db and len(wa_db) >= 8 and len(no_wa) >= 8 and no_wa.endswith(wa_db[-8:]):
-                    db.collection('guru').document(doc.id).update({'password': password})
-                    return redirect(url_for('login_guru', reset_success='true'))
-                    
-            return render_template('lupa_kata_sandi.html', error="Nomor WhatsApp tidak terdaftar.")
+        try:
+            # Update password dan daftarkan nomor WA jika belum terdaftar
+            db.collection(session_role).document(session_doc_id).update({
+                'password': password,
+                'no_wa': no_wa
+            })
+            
+            # Alihkan ke halaman login yang sesuai dengan peran
+            if session_role == 'admin':
+                return redirect(url_for('login_admin', reset_success='true'))
+            elif session_role == 'kepsek':
+                return redirect(url_for('login_kepsek', reset_success='true'))
+            else:
+                return redirect(url_for('login_guru', reset_success='true'))
+        except Exception as e:
+            return render_template('lupa_kata_sandi.html', error=f"Gagal memperbarui kata sandi: {e}")
             
     return render_template('lupa_kata_sandi.html')
 
@@ -234,29 +248,58 @@ def lupa_kata_sandi():
 def cek_wa():
     data_masuk = request.json
     no_wa = str(data_masuk.get('no_wa', '')).strip()
+    nip = str(data_masuk.get('nip', '')).strip()
     
-    if no_wa:
-        for doc in db.collection('guru').stream():
-            data_guru = doc.to_dict()
-            wa_db = str(data_guru.get('no_wa', '')).strip()
-            if wa_db and len(wa_db) >= 8 and len(no_wa) >= 8 and no_wa.endswith(wa_db[-8:]):
-                # 1. Generate OTP
-                otp = str(random.randint(1000, 9999))
+    if no_wa and nip:
+        target_role = None
+        target_doc_id = None
+        
+        # Cari di guru, kepsek, admin
+        for role in ['guru', 'kepsek', 'admin']:
+            for doc in db.collection(role).stream():
+                data_user = doc.to_dict()
+                nip_db = str(data_user.get('nip', '')).strip()
+                wa_db = str(data_user.get('no_wa', '')).strip()
                 
-                # 2. Simpan ke session
-                session['otp_code'] = otp
-                session['otp_wa'] = no_wa
+                # Cek apakah NIP cocok
+                if nip_db == nip:
+                    # Jika no_wa sudah ada di DB, harus cocok (8 digit terakhir)
+                    if wa_db:
+                        if len(wa_db) >= 8 and len(no_wa) >= 8 and no_wa.endswith(wa_db[-8:]):
+                            target_role = role
+                            target_doc_id = doc.id
+                            break
+                    else:
+                        # Fallback jika admin/kepsek belum punya nomor WA terdaftar, 
+                        # izinkan nomor yang diinput dan daftarkan otomatis nanti
+                        target_role = role
+                        target_doc_id = doc.id
+                        break
+            if target_role:
+                break
                 
-                # 3. Kirim via Fonnte
-                pesan = f"Kode OTP Anda untuk mereset kata sandi BridgeA adalah: *{otp}*. Jangan bagikan kode ini kepada siapapun."
-                status_kirim = kirim_wa_fonnte(no_wa, pesan)
-                
-                if status_kirim:
-                    return jsonify({'exists': True, 'sent': True})
-                else:
-                    return jsonify({'exists': True, 'sent': False, 'message': 'Gagal mengirim OTP melalui WhatsApp.'})
+        if target_role and target_doc_id:
+            # 1. Generate OTP
+            otp = str(random.randint(1000, 9999))
+            
+            # 2. Simpan ke session
+            session['otp_code'] = otp
+            session['otp_wa'] = no_wa
+            session['otp_nip'] = nip
+            session['otp_role'] = target_role
+            session['otp_doc_id'] = target_doc_id
+            
+            # 3. Kirim via Fonnte
+            pesan = f"Kode OTP Anda untuk mereset kata sandi BridgeA ({target_role.upper()}) adalah: *{otp}*. Jangan bagikan kode ini kepada siapapun."
+            status_kirim = kirim_wa_fonnte(no_wa, pesan)
+            
+            if status_kirim:
+                return jsonify({'exists': True, 'sent': True})
+            else:
+                return jsonify({'exists': True, 'sent': False, 'message': 'Gagal mengirim OTP melalui WhatsApp.'})
                 
     return jsonify({'exists': False})
+
 
 
 @aplikasi.route('/admin/dashboard')
