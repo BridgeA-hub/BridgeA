@@ -27,7 +27,14 @@
             <input type="password" name="password" placeholder="Masukan Kata Sandi..." autocomplete="off" required>
         </div>
         
+        {% if request.args.get('reset_success') %}
+        <div style="background-color: #dcfce7; color: #166534; padding: 10px; border-radius: 6px; margin-bottom: 1rem; text-align: center; font-size: 0.9rem; border: 1px solid #bbf7d0;">
+            Kata Sandi berhasil direset! Silakan login dengan sandi baru Anda.
+        </div>
+        {% endif %}
+        
         {% if error %}
+
         <div class="kotak-error">
             Kata Sandi Tidak Sesuai.<br>
             <a href="{{ url_for('lupa_kata_sandi') }}" class="tautan-lupa-sandi">Lupa Kata Sandi?</a>

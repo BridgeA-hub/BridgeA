@@ -21,18 +21,26 @@
         <!-- Input hidden untuk OTP -->
         <input type="hidden" id="otp_input" name="otp">
         
+        <!-- Input NIP -->
         <div class="grup-input grup-input-abu">
             <div class="ikon-input">
-                <i class="ph ph-lock-key"></i>
+                <i class="ph ph-user"></i>
             </div>
-            <input type="password" id="password_baru" name="password" placeholder="Masukan Kata Sandi Baru..." autocomplete="new-password" required>
+            <input type="text" id="nip" name="nip" placeholder="Masukan NIP Anda..." autocomplete="off" required>
         </div>
         
         <div class="grup-input grup-input-abu">
             <div class="ikon-input">
                 <i class="ph ph-lock-key"></i>
             </div>
-            <input type="password" id="konfirmasi_password" placeholder="Konfirmasi Kata Sandi Baru..." autocomplete="new-password" required>
+            <input type="text" id="password_baru" name="password" placeholder="Masukan Kata Sandi Baru..." style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" required>
+        </div>
+        
+        <div class="grup-input grup-input-abu">
+            <div class="ikon-input">
+                <i class="ph ph-lock-key"></i>
+            </div>
+            <input type="text" id="konfirmasi_password" placeholder="Konfirmasi Kata Sandi Baru..." style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" required>
         </div>
         
         <div style="margin-top: 0.5rem;">
@@ -53,15 +61,16 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     async function kirimOTP() {
+        const nip = document.getElementById('nip').value;
         const passBaru = document.getElementById('password_baru').value;
         const passKonfirm = document.getElementById('konfirmasi_password').value;
         let noWA = document.getElementById('nomor_wa').value;
         
-        if (!passBaru || !passKonfirm || !noWA) {
+        if (!nip || !passBaru || !passKonfirm || !noWA) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Data Belum Lengkap',
-                text: 'Harap isi semua kolom terlebih dahulu!'
+                text: 'Harap isi semua kolom termasuk NIP terlebih dahulu!'
             });
             return;
         }
@@ -75,7 +84,7 @@
             return;
         }
         
-        // Cek dulu apakah nomor WA terdaftar di database dan kirim OTP via Fonnte
+        // Cek dulu apakah nomor NIP dan WA terdaftar di database dan kirim OTP via Fonnte
         try {
             Swal.fire({
                 title: 'Memeriksa Data & Mengirim OTP...',
@@ -90,7 +99,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ no_wa: noWA })
+                body: JSON.stringify({ no_wa: noWA, nip: nip })
             });
             
             const data = await response.json();
