@@ -115,9 +115,11 @@
                         mintaKodeOTP();
                     });
                 } else {
+                    // Cek apakah ini pesan rate limiting (tunggu X detik)
+                    const isRateLimit = data.message && data.message.includes('Tunggu');
                     Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Mengirim OTP',
+                        icon: isRateLimit ? 'warning' : 'error',
+                        title: isRateLimit ? 'Harap Tunggu' : 'Gagal Mengirim OTP',
                         text: data.message || 'Terjadi kesalahan saat mengirim OTP via Fonnte.'
                     });
                 }
