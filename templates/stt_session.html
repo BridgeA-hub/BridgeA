@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BridgeSign - Sesi Pembelajaran</title>
+    <title>BridgeA - Sesi Pembelajaran</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
@@ -658,7 +658,7 @@
 
     <script>
         // Ambil kunci API Deepgram dari Python
-        const DEEPGRAM_API_KEY = '{{ deepgram_api_key }}';
+        const DEEPGRAM_API_KEY = '{{ deepgram_api_key or "" }}';
 
         // Ambil elemen HTML yang dibutuhkan
         const btnRekam = document.getElementById('btnRekam');
@@ -739,9 +739,11 @@
                 const opsiBahasaVal = document.getElementById('opsiBahasa').value;
                 const langModel = (opsiBahasaVal === 'en') ? 'en' : 'id';
                 const kataFokusSekarang = document.getElementById('pilihKataFokus').value;
-                const linkWebsocket = 'wss://api.deepgram.com/v1/listen?model=nova-2&language=' + langModel + '&smart_format=true&interim_results=true&endpointing=4000&vad_events=true&keywords=' + kataFokusSekarang + ':2';
+                // Build WebSocket URL without the access_token query param
+                // Mengubah endpointing ke 1500ms agar Deepgram mengirimkan data final lebih responsif
+                const linkWebsocket = `wss://api.deepgram.com/v1/listen?model=nova-2&language=${langModel}&smart_format=true&interim_results=true&endpointing=1500&vad_events=true&keywords=${encodeURIComponent(kataFokusSekarang)}:2`;
 
-                // Konek ke server Deepgram
+                // Hubungkan ke server Deepgram menggunakan subprotocol token (rekomendasi resmi untuk client-side browser)
                 socket = new WebSocket(linkWebsocket, ['token', DEEPGRAM_API_KEY]);
 
                 // Kalau koneksi sukses
@@ -782,40 +784,49 @@
                         teksUcapan = data.channel.alternatives[0].transcript;
                     }
 
+
                     if (teksUcapan != '') {
-                        // --- TAMBAHAN BARU: Kirim teks realtime ke API Firebase ---
+                        // Bersihkan timer pemrosesan kalimat jika user sedang berbicara (baik final maupun interim)
+                        // Agar pemrosesan terjemahan tidak berjalan sebelum user benar-benar diam selama 5 detik
+                        clearTimeout(timerJedaKalimat);
+
+                        // Dapatkan teks gabungan yang sudah final + teks baru (baik final maupun interim)
+                        const teksLengkapRealtime = (kalimatGabungan ? kalimatGabungan + ' ' : '') + teksUcapan.trim();
+
+                        // --- TAMBAHAN BARU: Kirim teks realtime (paragraf panjang mengalir) ke API Firebase ---
                         fetch('/api/update_teks_realtime', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ teks: teksUcapan.trim() })
+                            body: JSON.stringify({ teks: teksLengkapRealtime })
                         }).catch(err => console.log('Gagal update Firebase RTDB', err));
                         // -----------------------------------------------------------
                         
+                        const modeSekarang = document.getElementById('opsiBahasa').value;
+
                         // Kalau ucapannya sudah selesai dari sisi chunk
                         if (data.is_final) {
                             kalimatGabungan += " " + teksUcapan.trim();
                             kalimatGabungan = kalimatGabungan.trim();
                             
-                            // Tampilkan teks utuh sementara di layar
-                            const modeSekarang = document.getElementById('opsiBahasa').value;
+                            // Tampilkan teks utuh sementara di layar (warna teks utama)
                             if (modeSekarang === 'id-en') {
                                 teksIndonesian.innerHTML = '= ' + kalimatGabungan;
                             } else {
                                 teksEnglish.innerHTML = kalimatGabungan;
                             }
 
-                            // Tunggu 2.5 detik benar-benar hening sebelum memproses terjemahan & riwayat
-                            clearTimeout(timerJedaKalimat);
+                            // Tunggu 5 detik benar-benar hening setelah ucapan final terakhir sebelum memproses terjemahan & riwayat
                             timerJedaKalimat = setTimeout(() => {
                                 prosesKalimatSelesai(kalimatGabungan);
                                 kalimatGabungan = ""; // Reset untuk kalimat berikutnya
-                            }, 2500);
+                            }, 5000);
                         } else {
-                            const modeSekarang = document.getElementById('opsiBahasa').value;
+                            // Tampilkan teks final yang sudah terkumpul + kata baru yang sedang diucapkan (interim berwarna abu-abu)
+                            // Ini membuat teks mengalir panjang seperti paragraf dan tidak terpotong-potong / berkedip
                             if (modeSekarang === 'id-en') {
-                                teksIndonesian.innerHTML = '= <span style="color: #9ca3af;">' + teksUcapan + '</span>';
+                                teksIndonesian.innerHTML = '= ' + (kalimatGabungan ? kalimatGabungan + ' ' : '') + '<span style="color: #9ca3af;">' + teksUcapan + '</span>';
                             } else {
-                                teksEnglish.innerHTML = '<span style="color: #9ca3af;">' + teksUcapan + '</span>';
+                                teksEnglish.innerHTML = (kalimatGabungan ? kalimatGabungan + ' ' : '') + '<span style="color: #9ca3af;">' + teksUcapan + '</span>';
                                 teksIndonesian.innerHTML = '';
                             }
                         }
@@ -858,6 +869,21 @@
                     if (cachePhoneticsPlain[cacheKey]) {
                         spanBaru.setAttribute('data-phonetic', cachePhoneticsPlain[cacheKey]);
                     }
+                    
+                    // Update tampilan riwayat di sidebar dari cache
+                    let htmlListContent = cachePhonetics[cacheKey].replace(/onclick="[^"]*"/g, '');
+                    let extraText = '';
+                    if (modeSekarang === 'id-en') {
+                        extraText = `<div style="color: #b45309; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; pointer-events: none;">= ${teksBersih}</div>`;
+                    }
+                    let htmlList = `
+                    <div style="font-size: 1.6rem; font-weight: 700; color: var(--teks-utama); pointer-events: none;">
+                        ${htmlListContent}
+                    </div>
+                    ${extraText}
+                    `;
+                    spanBaru.innerHTML = htmlList;
+                    spanBaru.setAttribute('data-html', encodeURIComponent(htmlList));
                     return;
                 }
 
@@ -874,62 +900,82 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: teksUntukDibaca, lang: bahasa })
                     });
-                    const hasilPhonetic = await responPhonetic.json();
                     
                     const elLoading = document.getElementById(idUnik);
                     if(elLoading) elLoading.remove();
 
-                    if (hasilPhonetic.phonetics_array) {
-                        let htmlBaru = '<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; align-items: flex-end;">';
-                        let arrEjaan = [];
-                        
-                        hasilPhonetic.phonetics_array.forEach(item => {
-                            arrEjaan.push(item.phonetic);
-                            let phraseAsli = item.phrase || item.word || "";
-                            let words = phraseAsli.split(' ');
+                    if (responPhonetic.ok) {
+                        const hasilPhonetic = await responPhonetic.json();
+                        if (hasilPhonetic.phonetics_array) {
+                            let htmlBaru = '<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; align-items: flex-end;">';
+                            let arrEjaan = [];
                             
-                            let spanWords = words.map(kataAsli => {
-                                let kataBersih = kataAsli.replace(/[^a-zA-Z0-9']/g, '');
-                                let onClickAttr = kataBersih ? `onclick="klikKataFokus('${kataBersih}', '${bahasa}')"` : '';
-                                return `<span class="kata-clickable" ${onClickAttr} style="padding: 0 2px;">${kataAsli}</span>`;
-                            }).join(' ');
+                            hasilPhonetic.phonetics_array.forEach(item => {
+                                arrEjaan.push(item.phonetic);
+                                let phraseAsli = item.phrase || item.word || "";
+                                let words = phraseAsli.split(' ');
+                                
+                                let spanWords = words.map(kataAsli => {
+                                    let kataBersih = kataAsli.replace(/[^a-zA-Z0-9']/g, '');
+                                    let onClickAttr = kataBersih ? `onclick="klikKataFokus('${kataBersih}', '${bahasa}')"` : '';
+                                    return `<span class="kata-clickable" ${onClickAttr} style="padding: 0 2px;">${kataAsli}</span>`;
+                                }).join(' ');
 
-                            htmlBaru += `
-                                <span style="display: inline-flex; flex-direction: column; align-items: center; margin: 0 0.5rem;">
-                                    <span style="border-bottom: 5px solid #fcd34d; border-radius: 5px 5px 15px 15px; padding: 0 6px 4px 6px; color: var(--teks-utama); font-weight: inherit; display: flex; gap: 0.3rem;">
-                                        ${spanWords}
+                                htmlBaru += `
+                                    <span style="display: inline-flex; flex-direction: column; align-items: center; margin: 0 0.5rem;">
+                                        <span style="border-bottom: 5px solid #fcd34d; border-radius: 5px 5px 15px 15px; padding: 0 6px 4px 6px; color: var(--teks-utama); font-weight: inherit; display: flex; gap: 0.3rem;">
+                                            ${spanWords}
+                                        </span>
+                                        <span style="font-size: 1.15rem; color: #64748b; font-style: italic; margin-top: 0.4rem; font-weight: 600; text-align: center;">${item.phonetic.replace(/<[^>]*>/g, '')}</span>
                                     </span>
-                                    <span style="font-size: 1.15rem; color: #64748b; font-style: italic; margin-top: 0.4rem; font-weight: 600; text-align: center;">${item.phonetic.replace(/<[^>]*>/g, '')}</span>
-                                </span>
-                            `;
-                        });
-                        htmlBaru += '</div>';
-                        
-                        cachePhonetics[cacheKey] = htmlBaru;
-                        const plainPhonetic = arrEjaan.join(' ');
-                        cachePhoneticsPlain[cacheKey] = plainPhonetic;
-                        spanBaru.setAttribute('data-phonetic', plainPhonetic);
-                        
-                        teksEnglish.innerHTML = htmlBaru;
+                                `;
+                            });
+                            htmlBaru += '</div>';
+                            
+                            cachePhonetics[cacheKey] = htmlBaru;
+                            const plainPhonetic = arrEjaan.join(' ');
+                            cachePhoneticsPlain[cacheKey] = plainPhonetic;
+                            spanBaru.setAttribute('data-phonetic', plainPhonetic);
+                            
+                            teksEnglish.innerHTML = htmlBaru;
 
-                        let htmlListContent = htmlBaru.replace(/onclick="[^"]*"/g, '');
-                        let extraText = '';
-                        if (modeSekarang === 'id-en') {
-                            extraText = `<div style="color: #b45309; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; pointer-events: none;">= ${teksBersih}</div>`;
+                            let htmlListContent = htmlBaru.replace(/onclick="[^"]*"/g, '');
+                            let extraText = '';
+                            if (modeSekarang === 'id-en') {
+                                extraText = `<div style="color: #b45309; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; pointer-events: none;">= ${teksBersih}</div>`;
+                            }
+                            let htmlList = `
+                            <div style="font-size: 1.6rem; font-weight: 700; color: var(--teks-utama); pointer-events: none;">
+                                ${htmlListContent}
+                            </div>
+                            ${extraText}
+                            `;
+                            spanBaru.innerHTML = htmlList;
+                            spanBaru.setAttribute('data-html', encodeURIComponent(htmlList));
+                            return; // Selesai dengan sukses
                         }
-                        let htmlList = `
-                        <div style="font-size: 1.6rem; font-weight: 700; color: var(--teks-utama); pointer-events: none;">
-                            ${htmlListContent}
-                        </div>
-                        ${extraText}
-                        `;
-                        spanBaru.innerHTML = htmlList;
-                        spanBaru.setAttribute('data-html', encodeURIComponent(htmlList));
                     }
                 } catch (e) {
-                    const elLoading = document.getElementById(idUnik);
-                    if(elLoading) elLoading.remove();
+                    console.log("Error mengambil phonetics:", e);
                 }
+
+                // Fallback jika API error / response kosong / limit kuota habis
+                const elLoading2 = document.getElementById(idUnik);
+                if (elLoading2) elLoading2.remove();
+
+                let htmlListContentFallback = `<div style="text-align: center;">${teksUntukDibaca}</div>`;
+                let extraTextFallback = '';
+                if (modeSekarang === 'id-en') {
+                    extraTextFallback = `<div style="color: #b45309; font-weight: 600; font-size: 1.1rem; text-align: center; margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; pointer-events: none;">= ${teksBersih}</div>`;
+                }
+                let htmlListFallback = `
+                <div style="font-size: 1.6rem; font-weight: 700; color: var(--teks-utama); pointer-events: none;">
+                    ${htmlListContentFallback}
+                </div>
+                ${extraTextFallback}
+                `;
+                spanBaru.innerHTML = htmlListFallback;
+                spanBaru.setAttribute('data-html', encodeURIComponent(htmlListFallback));
             }
 
             if (modeSekarang === 'id-en') {
@@ -948,12 +994,13 @@
                         const htmlBisaDiklik = buatTeksBisaDiklik(hasilTranslate.translation, 'en');
                         teksEnglish.innerHTML = htmlBisaDiklik;
                         
+                        // Set loading state di sidebar sebelum mulai mengambil cara baca
+                        spanBaru.innerHTML = `<div style="font-size: 1.2rem; font-weight: 600; color: var(--teks-utama); text-align: center;"><i class="ph ph-spinner ph-spin"></i> Memproses...</div>`;
+                        
                         ambilCaraBaca(hasilTranslate.translation, 'en');
                         
                         // Simpan kata-kata dari terjemahan ke dalam array sesi
                         catatKosakataSesi(hasilTranslate.translation, 'en');
-
-                        spanBaru.innerHTML = `<div style="font-size: 1.2rem; font-weight: 600; color: var(--teks-utama); text-align: center;"><i class="ph ph-spinner ph-spin"></i> Memproses...</div>`;
 
                         spanBaru.onclick = function () {
                             document.getElementById('teksEnglish').innerHTML = htmlBisaDiklik;
@@ -973,13 +1020,14 @@
                 const htmlBisaDiklik = buatTeksBisaDiklik(teksBersih, modeSekarang);
                 teksEnglish.innerHTML = htmlBisaDiklik;
                 
+                // Set loading state di sidebar sebelum mulai mengambil cara baca
+                spanBaru.innerHTML = `<div style="font-size: 1.2rem; font-weight: 600; color: var(--teks-utama); text-align: center;"><i class="ph ph-spinner ph-spin"></i> Memproses...</div>`;
+                
                 ambilCaraBaca(teksBersih, modeSekarang);
                 
                 if (modeSekarang === 'en' || modeSekarang === 'id') {
                     catatKosakataSesi(teksBersih, modeSekarang);
                 }
-                
-                spanBaru.innerHTML = `<div style="font-size: 1.2rem; font-weight: 600; color: var(--teks-utama); text-align: center;"><i class="ph ph-spinner ph-spin"></i> Memproses...</div>`;
                 spanBaru.onclick = function () {
                     document.getElementById('teksEnglish').innerHTML = htmlBisaDiklik;
                     document.getElementById('teksIndonesian').innerHTML = '';
