@@ -978,6 +978,39 @@ def api_simpan_feedback():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def generate_manual_kata_fokus(kata, lang):
+    # Dapatkan terjemahan menggunakan translate_client jika aktif
+    arti = kata.lower()
+    if translate_client:
+        try:
+            if lang == 'id':
+                # Cari terjemahan dari ID ke EN
+                hasil = translate_client.translate(kata, target_language='en')
+                arti = hasil['translatedText']
+            else:
+                # Cari terjemahan dari EN ke ID
+                hasil = translate_client.translate(kata, target_language='id')
+                arti = hasil['translatedText']
+        except Exception:
+            pass
+            
+    if lang == 'id':
+        spell = kata.lower()
+        cara = spell
+        catatan = f"Contoh penggunaan: Ayo gunakan kata '{kata.lower()}' dalam kalimat."
+    else:
+        spell = konversi_kata_en_ke_fonetik(kata)
+        cara = spell
+        catatan = f"Contoh penggunaan: I like this '{kata.lower()}' ({arti.lower()})."
+        
+    return {
+        "word": kata,
+        "spell": spell,
+        "arti": arti.capitalize(),
+        "cara": cara,
+        "catatan": catatan
+    }
+
 @aplikasi.route('/api/generate_kata_fokus', methods=['POST'])
 def api_generate_kata_fokus():
     data_masuk = request.json
@@ -1000,12 +1033,12 @@ def api_generate_kata_fokus():
             data_cache['cara'] = clean_cara.replace('-', '')
         return jsonify(data_cache)
         
-    # 2. Kalau belum ada, kita minta AI Gemini untuk mikir
+    # 2. Kalau belum ada, kita coba generate via AI Gemini terlebih dahulu (Dinamis)
     try:
-        mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
-        
-        if lang == 'id':
-            perintah = f"""Tolong kasih penjelasan singkat kata bahasa Indonesia '{kata_dicari}' untuk anak SLB.
+        try:
+            mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
+            if lang == 'id':
+                perintah = f"""Tolong kasih penjelasan singkat kata bahasa Indonesia '{kata_dicari}' untuk anak SLB.
 Balas HANYA pakai format JSON, jangan ada teks lain.
 
 Aturan Ejaan Cara Baca ("spell" & "cara"):
@@ -1029,9 +1062,8 @@ Format JSON persis seperti ini:
   "cara": "bermain",
   "catatan": "Ayo kita bermain bola di lapangan."
 }}"""
-        else:
-            # Perintah sederhana buat AI
-            perintah = f"""Tolong kasih penjelasan singkat kata bahasa Inggris '{kata_dicari}' untuk anak SLB.
+            else:
+                perintah = f"""Tolong kasih penjelasan singkat kata bahasa Inggris '{kata_dicari}' untuk anak SLB.
 Balas HANYA pakai format JSON, jangan ada teks lain.
 
 Aturan Ejaan Cara Baca ("spell" & "cara"):
@@ -1059,31 +1091,281 @@ Format JSON persis seperti ini:
   "catatan": "Kata ini dipakai untuk menanyakan sesuatu."
 }}"""
 
-        jawaban_ai = mesin_ai.generate_content(perintah)
-        teks_jawaban = jawaban_ai.text.strip()
-        
-        # Potong teks supaya pas cuma ambil JSON-nya saja
-        awal = teks_jawaban.find('{')
-        akhir = teks_jawaban.rfind('}')
-        if awal != -1 and akhir != -1:
-            teks_jawaban = teks_jawaban[awal:akhir+1]
-        else:
-            return jsonify({'error': 'AI membalas dengan format salah'}), 500
+            jawaban_ai = mesin_ai.generate_content(perintah)
+            teks_jawaban = jawaban_ai.text.strip()
             
-        data_jadi = json.loads(teks_jawaban)
-        
-        # JANGAN gunakan tanda pemisah suku kata (-)
-        ejaan = data_jadi.get('spell', '')
-        data_jadi['spell'] = ejaan.replace('-', '')
-        
-        # 3. Simpan ke database biar besok-besok nggak usah mikir lagi
+            # Potong teks supaya pas cuma ambil JSON-nya saja
+            awal = teks_jawaban.find('{')
+            akhir = teks_jawaban.rfind('}')
+            if awal != -1 and akhir != -1:
+                teks_jawaban = teks_jawaban[awal:akhir+1]
+                data_jadi = json.loads(teks_jawaban)
+                ejaan = data_jadi.get('spell', '')
+                data_jadi['spell'] = ejaan.replace('-', '')
+                
+                # Simpan ke database
+                db.collection('kamus_kosakata').document(doc_id).set(data_jadi)
+                return jsonify(data_jadi)
+        except Exception as e_gemini:
+            print("API Gemini gagal/limit habis, menggunakan fallback manual untuk kata fokus:", e_gemini)
+            
+        # Fallback manual jika Gemini error
+        data_jadi = generate_manual_kata_fokus(kata_dicari, lang)
         db.collection('kamus_kosakata').document(doc_id).set(data_jadi)
-        
         return jsonify(data_jadi)
         
     except Exception as error_nya:
-        print("Error dari Gemini:", error_nya)
-        return jsonify({'error': str(error_nya)}), 500
+        print("Error total generate kata fokus:", error_nya)
+        try:
+            data_jadi = generate_manual_kata_fokus(kata_dicari, lang)
+            return jsonify(data_jadi)
+        except Exception as e_fallback:
+            return jsonify({'error': str(e_fallback)}), 500
+
+# Kamus ejaan bahasa Inggris -> cara baca Indonesia (lokal fallback)
+KAMUS_EJAAN_EN = {
+    # Singkatan umum
+    "let's": "lets", "lets": "lets",
+    "it's": "its", "its": "its",
+    "that's": "dets", "thats": "dets",
+    "i'm": "aim", "im": "aim",
+    "don't": "dount", "dont": "dount",
+    "can't": "kent", "cant": "kent",
+    "won't": "wount", "wont": "wount",
+    "you're": "yur", "youre": "yur",
+    "we're": "wir", "were": "wer",
+    "they're": "deir", "theyre": "deir",
+    "he's": "his", "hes": "his",
+    "she's": "syis", "shes": "syis",
+    "what's": "wots", "whats": "wots",
+    "there's": "ders", "theres": "ders",
+    "here's": "hirs", "heres": "hirs",
+
+    # Singkatan n't tambahan
+    "doesn't": "dazen", "doesnt": "dazen",
+    "didn't": "diden", "didnt": "diden",
+    "isn't": "izen", "isnt": "izen",
+    "aren't": "aren", "arent": "aren",
+    "wasn't": "wozen", "wasnt": "wozen",
+    "weren't": "weren", "werent": "weren",
+    "haven't": "heven", "havent": "heven",
+    "hasn't": "hezen", "hasnt": "hezen",
+    "hadn't": "heden", "hadnt": "heden",
+    "couldn't": "kuden", "couldnt": "kuden",
+    "shouldn't": "syuden", "shouldnt": "syuden",
+    "wouldn't": "wuden", "wouldnt": "wuden",
+    "mustn't": "masen", "mustnt": "masen",
+
+    # Kata Ganti (Pronouns)
+    "i": "ai", "me": "mi", "my": "mai", "myself": "mai self",
+    "you": "yu", "your": "yor", "yours": "yors", "yourself": "yorself",
+    "he": "hi", "him": "him", "his": "his", "himself": "himself",
+    "she": "syi", "her": "her", "hers": "hers", "herself": "herself",
+    "it": "it", "its": "its", "itself": "itself",
+    "we": "wi", "us": "as", "our": "aur", "ours": "aurs", "ourselves": "aur selvz",
+    "they": "dei", "them": "dem", "their": "deir", "theirs": "deirs", "themselves": "deir selvz",
+    "everyone": "evri wan", "everybody": "evri badi", "someone": "sam wan", "anyone": "eni wan",
+    
+    # Kata Tanya (Questions)
+    "what": "wot", "who": "hu", "whom": "hum", "whose": "huz",
+    "where": "wer", "when": "wen", "why": "wai", "how": "hau",
+    
+    # Kata Kerja Bantu & to be
+    "am": "em", "is": "is", "are": "ar", "was": "wos", "were": "wer",
+    "be": "bi", "been": "bin", "being": "bi-ing",
+    "have": "hev", "has": "hes", "had": "hed",
+    "do": "du", "does": "das", "did": "did", "done": "dan", "doing": "du-ing",
+    "can": "ken", "could": "kud", "shall": "syal", "should": "syud",
+    "will": "wil", "would": "wud", "may": "mei", "might": "mait", "must": "mas",
+    
+    # Angka & Waktu
+    "one": "wan", "two": "tu", "three": "tri", "four": "for", "five": "faif",
+    "six": "siks", "seven": "seven", "eight": "eit", "nine": "nain", "ten": "ten",
+    "today": "tu dei", "tomorrow": "tu morou", "yesterday": "yes ter dei",
+    "morning": "mor ning", "afternoon": "af ter nun", "evening": "if ning", "night": "nait",
+    "day": "dei", "week": "wik", "month": "manth", "year": "yir", "yet": "yet",
+    
+    # Percakapan Umum & Kata Sifat
+    "hello": "helo", "hi": "hai", "please": "plis", "thanks": "tengks", "thank": "tengk",
+    "welcome": "wel kam", "sorry": "sori", "excuse": "eks kius", "yes": "yes", "no": "nou",
+    "good": "gud", "bad": "bed", "fine": "fain", "nice": "nais", "great": "greit",
+    "well": "wel", "easy": "izi", "hard": "hard", "busy": "bizi",
+    
+    # Kata Depan & Hubung
+    "the": "de", "a": "e", "an": "en", "and": "end", "but": "bat", "or": "or",
+    "in": "in", "on": "on", "at": "et", "to": "tu", "for": "for", "with": "wit",
+    "from": "from", "by": "bai", "about": "e baut", "of": "of", "off": "of",
+    "this": "dis", "that": "det", "these": "diz", "those": "douz",
+    "here": "hir", "there": "der", "some": "sam", "any": "eni",
+    
+    # Kosakata Sekolah & Akademik (Akurasi Tinggi)
+    "english": "ing glis", "indonesia": "in do ne sya", "school": "skul", "class": "klas",
+    "classroom": "klas rum", "teacher": "tit ser", "student": "stu den", "book": "buk",
+    "pen": "pen", "pencil": "pen sil", "paper": "peiper", "notebook": "nout buk",
+    "read": "rid", "write": "rait", "writes": "raits", "wrote": "rout", "written": "riten",
+    "speak": "spik", "listen": "lisen", "learn": "lern", "learns": "lerns", "learned": "lernd",
+    "study": "stadi", "teach": "tic", "lesson": "leson", "homework": "houm wirk",
+    "question": "kwes syen", "answer": "en ser", "word": "werd", "sentence": "sen tens",
+    
+    # Kata Kerja Umum Khusus (Akurasi Tinggi dari user request)
+    "give": "gif", "gives": "gifs", "gave": "geif", "given": "given", "giving": "gifting",
+    "understand": "ander stend", "understands": "ander stends", "understood": "ander stud", "understanding": "ander stending",
+    "start": "start", "started": "star ted", "starting": "starting",
+    "look": "luk", "looks": "luks", "looking": "luking", "looked": "lukt",
+    "like": "laik", "likes": "laiks", "liking": "laiking", "liked": "laikt",
+    "image": "imej", "images": "imejiz", "media": "midia", "medias": "midia",
+    "budget": "bajet", "budgets": "bajets", "facility": "fasiliti", "facilities": "fasilitiz",
+    "people": "pipel", "peoples": "pipels",
+}
+
+def konversi_kata_en_ke_fonetik(kata):
+    kata_lower = kata.lower()
+    
+    # 1. Cek kamus pemetaan kata langsung
+    if kata_lower in KAMUS_EJAAN_EN:
+        return KAMUS_EJAAN_EN[kata_lower]
+        
+    # 2. Jika tidak ada di kamus, gunakan aturan konversi huruf (fonetis)
+    ejaan = kata_lower
+    
+    # a. Ganti akhiran -tion ke -syen
+    ejaan = re.sub(r'tion\b', 'syen', ejaan)
+    ejaan = re.sub(r'tions\b', 'syenz', ejaan)
+    
+    # b. Penanganan a_konsonan_e -> ei (name -> neim, game -> geim)
+    ejaan = re.sub(r'a([bcdfghjklmnpqrstvwxyz])e\b', r'ei\1', ejaan)
+    # c. Penanganan i_konsonan_e -> ai (like -> laik, time -> taim)
+    ejaan = re.sub(r'i([bcdfghjklmnpqrstvwxyz])e\b', r'ai\1', ejaan)
+    # d. Penanganan o_konsonan_e -> ou (home -> houm, close -> klous)
+    ejaan = re.sub(r'o([bcdfghjklmnpqrstvwxyz])e\b', r'ou\1', ejaan)
+    
+    # e. Ganti sh -> sy, ch -> c, ph -> f, ck -> k
+    ejaan = ejaan.replace('sh', 'sy')
+    ejaan = ejaan.replace('ch', 'c')
+    ejaan = ejaan.replace('ph', 'f')
+    ejaan = ejaan.replace('ck', 'k')
+    
+    # f. Penanganan double vowels: ee -> i, ea -> i, oo -> u
+    ejaan = ejaan.replace('ee', 'i')
+    ejaan = ejaan.replace('ea', 'i')
+    ejaan = ejaan.replace('oo', 'u')
+    
+    # g. Penanganan 'th' -> 't' (think -> tingk, thank -> tengk)
+    ejaan = ejaan.replace('th', 't')
+    
+    # h. Penanganan akhiran 'y' pada kata pendek -> 'ai' (try -> trai, fly -> flai)
+    if len(ejaan) <= 4 and ejaan.endswith('y'):
+        ejaan = ejaan[:-1] + 'ai'
+    # Penanganan akhiran 'y' pada kata panjang -> 'i' (happy -> hepi, family -> famili)
+    elif ejaan.endswith('y'):
+        ejaan = ejaan[:-1] + 'i'
+        
+    # i. Penanganan 'c' diikuti e, i, y -> 's'
+    ejaan = re.sub(r'c([eiy])', r's\1', ejaan)
+    # 'c' lainnya -> 'k'
+    ejaan = ejaan.replace('c', 'k')
+    
+    # j. Penanganan 'x' -> 'ks'
+    ejaan = ejaan.replace('x', 'ks')
+    
+    # k. Hilangkan akhiran 'e' bisu di akhir kata jika panjang kata > 3
+    if len(ejaan) > 3 and ejaan.endswith('e') and not ejaan.endswith(('ae', 'ee', 'ie', 'oe', 'ue')):
+        ejaan = ejaan[:-1]
+
+    # Penyelarasan vokal minor
+    # 'ou' -> 'au' (house -> haus, out -> aut)
+    ejaan = ejaan.replace('ou', 'au')
+    # 'ow' -> 'au' (how -> hau, now -> nau)
+    ejaan = ejaan.replace('ow', 'au')
+    
+    return ejaan
+
+def generate_manual_phonetics(teks, lang):
+    import re
+    
+    # 1. Normalisasi teks jika bahasa Inggris
+    if lang == 'en':
+        # Ubah curly apostrophe menjadi tegak
+        teks = teks.replace("’", "'").replace("‘", "'")
+        
+        # Gabungkan singkatan bahasa Inggris yang terpisah spasi secara umum
+        singkatan = {
+            r"\blet\s+s\b": "let's",
+            r"\bit\s+s\b": "it's",
+            r"\bthat\s+s\b": "that's",
+            r"\bhe\s+s\b": "he's",
+            r"\bshe\s+s\b": "she's",
+            r"\bi\s+m\b": "i'm",
+            r"\bdon\s+t\b": "don't",
+            r"\bcan\s+t\b": "can't",
+            r"\bwon\s+t\b": "won't",
+            r"\byou\s+re\b": "you're",
+            r"\bwe\s+re\b": "we're",
+            r"\bthey\s+re\b": "they're",
+            r"\bwhat\s+s\b": "what's",
+            r"\bwho\s+s\b": "who's",
+            r"\bwhere\s+s\b": "where's",
+            r"\bwhen\s+s\b": "when's",
+            r"\bwhy\s+s\b": "why's",
+            r"\bhow\s+s\b": "how's",
+            r"\bthere\s+s\b": "there's",
+            r"\bhere\s+s\b": "here's",
+            r"\bdoesn\s+t\b": "doesn't",
+            r"\bdidn\s+t\b": "didn't",
+            r"\bisn\s+t\b": "isn't",
+            r"\baren\s+t\b": "aren't",
+            r"\bwasn\s+t\b": "wasn't",
+            r"\bweren\s+t\b": "weren't",
+            r"\bhaven\s+t\b": "haven't",
+            r"\bhasn\s+t\b": "hasn't",
+            r"\bhadn\s+t\b": "hadn't",
+            r"\bcouldn\s+t\b": "couldn't",
+            r"\bshouldn\s+t\b": "shouldn't",
+            r"\bwouldn\s+t\b": "wouldn't",
+            r"\bmustn\s+t\b": "mustn't"
+        }
+        for pola, pengganti in singkatan.items():
+            teks = re.sub(pola, pengganti, teks, flags=re.IGNORECASE)
+            
+    # Bersihkan tanda baca
+    words = re.findall(r"\b[a-zA-Z']+\b", teks)
+    if not words:
+        return [{"phrase": teks, "phonetic": teks.lower()}]
+        
+    phonetics_array = []
+    
+    # Daftar kata hubung pemecah frasa
+    conjunctions = {"and", "but", "or", "so", "because", "with", "from", "to", "for", "in", "on", "at"}
+    
+    current_phrase_words = []
+    
+    for word in words:
+        is_break = False
+        if word.lower() in conjunctions:
+            is_break = True
+        elif len(current_phrase_words) >= 3: # maksimal 3 kata per frasa agar garis kuning proporsional
+            is_break = True
+            
+        if is_break and current_phrase_words:
+            phrase = " ".join(current_phrase_words)
+            if lang == 'id':
+                phonetic = phrase.lower()
+            else:
+                phonetic = " ".join([konversi_kata_en_ke_fonetik(w) for w in current_phrase_words])
+            phonetics_array.append({"phrase": phrase, "phonetic": phonetic})
+            current_phrase_words = []
+            
+        current_phrase_words.append(word)
+        
+    if current_phrase_words:
+        phrase = " ".join(current_phrase_words)
+        if lang == 'id':
+            phonetic = phrase.lower()
+        else:
+            phonetic = " ".join([konversi_kata_en_ke_fonetik(w) for w in current_phrase_words])
+        phonetics_array.append({"phrase": phrase, "phonetic": phonetic})
+        
+    return phonetics_array
 
 @aplikasi.route('/api/generate_phonetics_sentence', methods=['POST'])
 def api_generate_phonetics_sentence():
@@ -1099,7 +1381,7 @@ def api_generate_phonetics_sentence():
         # Gunakan hash MD5 dari teks dan bahasa sebagai ID dokumen
         doc_id = hashlib.md5(f"{teks}_{lang}".encode('utf-8')).hexdigest()
         
-        # 1. Cek dulu apakah kalimat ini sudah pernah diproses AI
+        # 1. Cek dulu apakah kalimat ini sudah pernah diproses di DB
         dokumen = db.collection('kamus_kalimat').document(doc_id).get()
         if dokumen.exists:
             data_cache = dokumen.to_dict()
@@ -1110,10 +1392,12 @@ def api_generate_phonetics_sentence():
                     item['phonetic'] = clean_phonetic.replace('-', '')
             return jsonify({'phonetics_array': phonetics_array})
 
-        mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
-        
-        if lang == 'id':
-            perintah = f"""Tolong kelompokkan kalimat bahasa Indonesia berikut ke dalam frasa (bagian kalimat) yang bermakna, lalu berikan cara bacanya per frasa untuk anak SLB:
+        # 2. Coba gunakan AI Gemini terlebih dahulu (Dinamis)
+        try:
+            mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
+            
+            if lang == 'id':
+                perintah = f"""Tolong kelompokkan kalimat bahasa Indonesia berikut ke dalam frasa (bagian kalimat) yang bermakna, lalu berikan cara bacanya per frasa untuk anak SLB:
 Kalimat: "{teks}"
 
 Aturan:
@@ -1126,8 +1410,8 @@ Contoh: "Bapak pergi ke pasar" menjadi:
   {{"phrase": "ke pasar", "phonetic": "ke pasar"}}
 ]
 """
-        else:
-            perintah = f"""Tolong kelompokkan kalimat bahasa Inggris berikut ke dalam frasa (bagian kalimat) yang bermakna, lalu berikan cara bacanya menggunakan ejaan fonetik bahasa Indonesia agar mudah dieja oleh anak SLB:
+            else:
+                perintah = f"""Tolong kelompokkan kalimat bahasa Inggris berikut ke dalam frasa (bagian kalimat) yang bermakna, lalu berikan cara bacanya menggunakan ejaan fonetik bahasa Indonesia agar mudah dieja oleh anak SLB:
 Kalimat: "{teks}"
 
 Aturan:
@@ -1140,32 +1424,92 @@ Contoh: "Hello how are you" menjadi:
   {{"phrase": "how are you", "phonetic": "hau ar yu"}}
 ]
 """
-        
-        jawaban_ai = mesin_ai.generate_content(perintah)
-        teks_jawaban = jawaban_ai.text.strip()
-        
-        # Ekstrak JSON
-        awal = teks_jawaban.find('[')
-        akhir = teks_jawaban.rfind(']')
-        if awal != -1 and akhir != -1:
-            teks_jawaban = teks_jawaban[awal:akhir+1]
-        else:
-            return jsonify({'error': 'Format balasan AI salah'}), 500
             
-        data_array = json.loads(teks_jawaban)
-        
-        for item in data_array:
-            ejaan_lama = item.get('phonetic', '')
-            item['phonetic'] = ejaan_lama.replace('-', '')
+            jawaban_ai = mesin_ai.generate_content(perintah)
+            teks_jawaban = jawaban_ai.text.strip()
+            
+            # Ekstrak JSON
+            awal = teks_jawaban.find('[')
+            akhir = teks_jawaban.rfind(']')
+            if awal != -1 and akhir != -1:
+                teks_jawaban = teks_jawaban[awal:akhir+1]
+                data_array = json.loads(teks_jawaban)
                 
-        # Simpan hasil AI ke Firestore agar tidak perlu memanggil API lagi untuk kalimat yang sama
+                for item in data_array:
+                    ejaan_lama = item.get('phonetic', '')
+                    item['phonetic'] = ejaan_lama.replace('-', '')
+                    
+                # Simpan hasil AI ke Firestore
+                db.collection('kamus_kalimat').document(doc_id).set({'phonetics_array': data_array})
+                return jsonify({'phonetics_array': data_array})
+        except Exception as e_gemini:
+            print("API Gemini gagal/limit habis, menggunakan fallback manual untuk ejaan kalimat:", e_gemini)
+
+        # Fallback offline jika Gemini error
+        data_array = generate_manual_phonetics(teks, lang)
         db.collection('kamus_kalimat').document(doc_id).set({'phonetics_array': data_array})
-        
         return jsonify({'phonetics_array': data_array})
         
     except Exception as error_nya:
-        print("Error dari Gemini (phonetic):", error_nya)
-        return jsonify({'error': str(error_nya)}), 500
+        print("Error total generate phonetic:", error_nya)
+        # Fallback langsung jika Firestore/DB juga error
+        try:
+            data_array = generate_manual_phonetics(teks, lang)
+            return jsonify({'phonetics_array': data_array})
+        except Exception as e_fallback:
+            return jsonify({'error': str(e_fallback)}), 500
+
+def generate_manual_kuis_game(words, lang):
+    import random
+    pertanyaan = []
+    
+    # Kumpulkan terjemahan untuk semua kata terlebih dahulu
+    kamus_terjemahan = {}
+    for w in words:
+        terjemahan = w.lower()
+        if translate_client:
+            try:
+                target = 'id' if lang != 'id' else 'en'
+                hasil = translate_client.translate(w, target_language=target)
+                terjemahan = hasil['translatedText']
+            except Exception:
+                pass
+        kamus_terjemahan[w] = terjemahan.capitalize()
+        
+    # Daftar semua arti untuk dijadikan pilihan pengecoh
+    semua_arti = list(kamus_terjemahan.values())
+    
+    # Kata pengecoh tambahan jika koleksi kata terlalu sedikit
+    pengecoh_tambahan_id = ["Kucing", "Rumah", "Buku", "Sekolah", "Makan", "Minum", "Tidur", "Lari", "Duduk", "Guru"]
+    pengecoh_tambahan_en = ["Cat", "House", "Book", "School", "Eat", "Drink", "Sleep", "Run", "Sit", "Teacher"]
+    
+    for kata, arti_benar in kamus_terjemahan.items():
+        # Buat daftar pilihan salah
+        pilihan_salah = [a for a in semua_arti if a != arti_benar]
+        
+        # Jika pilihan salah kurang dari 3, tambahkan dari pengecoh tambahan
+        cadangan = pengecoh_tambahan_id if lang != 'id' else pengecoh_tambahan_en
+        random.shuffle(cadangan)
+        for c in cadangan:
+            if len(pilihan_salah) >= 3:
+                break
+            if c != arti_benar and c not in pilihan_salah:
+                pilihan_salah.append(c)
+                
+        # Ambil tepat 3 pilihan salah
+        pilihan_salah = pilihan_salah[:3]
+        
+        # Gabung jawaban benar dengan 3 pilihan salah
+        pilihan = pilihan_salah + [arti_benar]
+        random.shuffle(pilihan)
+        
+        pertanyaan.append({
+            "kata": kata.upper(),
+            "jawabanBenar": arti_benar,
+            "pilihan": pilihan
+        })
+        
+    return pertanyaan
 
 @aplikasi.route('/api/generate_kuis_game', methods=['POST'])
 def api_generate_kuis_game():
@@ -1179,11 +1523,13 @@ def api_generate_kuis_game():
         return jsonify({'error': 'Format kata harus berupa list/array'}), 400
         
     try:
-        mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
-        kata_str = ", ".join(daftar_kata)
-        
-        if lang == 'id':
-            perintah = f"""Buatkan soal latihan kosakata bahasa Inggris berdasarkan daftar kata bahasa Indonesia berikut: {kata_str}.
+        # Coba gunakan AI Gemini terlebih dahulu (Dinamis)
+        try:
+            mesin_ai = genai.GenerativeModel('gemini-2.5-flash')
+            kata_str = ", ".join(daftar_kata)
+            
+            if lang == 'id':
+                perintah = f"""Buatkan soal latihan kosakata bahasa Inggris berdasarkan daftar kata bahasa Indonesia berikut: {kata_str}.
 Target pengguna: Anak SLB (Sekolah Luar Biasa) yang sedang belajar bahasa Inggris dasar.
 
 Aturan:
@@ -1202,8 +1548,8 @@ Contoh format balasan:
     "pilihan": ["Makan", "Lari", "Tidur", "Minum"]
   }}
 ]"""
-        else:
-            perintah = f"""Buatkan soal latihan kosakata untuk kata-kata bahasa Inggris berikut: {kata_str}.
+            else:
+                perintah = f"""Buatkan soal latihan kosakata untuk kata-kata bahasa Inggris berikut: {kata_str}.
 Target pengguna: Anak SLB (Sekolah Luar Biasa) yang sedang belajar bahasa Inggris dasar.
 
 Aturan:
@@ -1227,22 +1573,29 @@ Contoh format balasan:
   }}
 ]"""
 
-        jawaban_ai = mesin_ai.generate_content(perintah)
-        teks_jawaban = jawaban_ai.text.strip()
-        
-        awal = teks_jawaban.find('[')
-        akhir = teks_jawaban.rfind(']')
-        if awal != -1 and akhir != -1:
-            teks_jawaban = teks_jawaban[awal:akhir+1]
-        else:
-            return jsonify({'error': 'Format balasan AI salah'}), 500
+            jawaban_ai = mesin_ai.generate_content(perintah)
+            teks_jawaban = jawaban_ai.text.strip()
             
-        data_array = json.loads(teks_jawaban)
+            awal = teks_jawaban.find('[')
+            akhir = teks_jawaban.rfind(']')
+            if awal != -1 and akhir != -1:
+                teks_jawaban = teks_jawaban[awal:akhir+1]
+                data_array = json.loads(teks_jawaban)
+                return jsonify({'pertanyaan': data_array})
+        except Exception as e_gemini:
+            print("API Gemini gagal/limit habis, menggunakan fallback manual untuk kuis game:", e_gemini)
+
+        # Generate latihan kuis secara offline manual (lebih cepat dan stabil)
+        data_array = generate_manual_kuis_game(daftar_kata, lang)
         return jsonify({'pertanyaan': data_array})
         
     except Exception as error_nya:
-        print("Error dari Gemini (kuis game):", error_nya)
-        return jsonify({'error': str(error_nya)}), 500
+        print("Error total generate kuis game:", error_nya)
+        try:
+            data_array = generate_manual_kuis_game(daftar_kata, lang)
+            return jsonify({'pertanyaan': data_array})
+        except Exception as e_fallback:
+            return jsonify({'error': str(e_fallback)}), 500
 
 @aplikasi.route('/api/update_teks_realtime', methods=['POST'])
 def update_teks_realtime():
