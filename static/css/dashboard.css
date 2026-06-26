@@ -5,6 +5,40 @@
     --biru-teks: #0A2580;
     --abu-teks: #6B7280;
     --warna-batas: #E5E7EB;
+    --hitam-teks: #1e293b;
+}
+
+/* Pastikan semua elemen tampilan teks tidak menampilkan kursor ketik (I-beam) */
+body.dasbor-body span:not([contenteditable]),
+body.dasbor-body p:not([contenteditable]),
+body.dasbor-body h1:not([contenteditable]),
+body.dasbor-body h2:not([contenteditable]),
+body.dasbor-body h3:not([contenteditable]),
+body.dasbor-body h4:not([contenteditable]),
+body.dasbor-body h5:not([contenteditable]),
+body.dasbor-body label:not([contenteditable]),
+body.dasbor-body div:not([contenteditable]):not(.cropper-container):not(.cropper-wrap-box):not(.cropper-canvas):not(.cropper-drag-box):not(.cropper-crop-box) {
+    cursor: default;
+}
+
+/* Input, tombol, dan elemen interaktif tetap punya cursor yang sesuai */
+body.dasbor-body input,
+body.dasbor-body textarea,
+body.dasbor-body select {
+    cursor: text;
+}
+
+body.dasbor-body button,
+body.dasbor-body a,
+body.dasbor-body [role="button"],
+body.dasbor-body .nav-item,
+body.dasbor-body .tombol-keluar,
+body.dasbor-body .profil-img,
+body.dasbor-body .aksi-btn,
+body.dasbor-body .tombol-tambah,
+body.dasbor-body .tombol-batal,
+body.dasbor-body .tombol-simpan {
+    cursor: pointer;
 }
 
 body.dasbor-body {
@@ -99,7 +133,6 @@ body.dasbor-body {
     font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
-    overflow: hidden;
 }
 
 .profil-img:hover .overlay-foto {
@@ -112,9 +145,10 @@ body.dasbor-body {
     background-color: #10B981;
     border-radius: 50%;
     position: absolute;
-    bottom: 5px;
-    right: 5px;
+    bottom: 0px;
+    right: 0px;
     border: 2px solid white;
+    z-index: 5;
 }
 
 .profil-nama {
@@ -544,5 +578,14 @@ body.dasbor-body {
 
 .tombol-simpan:hover {
     background-color: #7E6B99;
+}
+
+/* Dropdown Menu Foto Profil */
+.menu-profil-dropdown button:hover {
+    background-color: #f8fafc !important;
+}
+
+.menu-profil-dropdown button:active {
+    background-color: #f1f5f9 !important;
 }
 

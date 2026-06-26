@@ -61,8 +61,20 @@
                 <i class="ph ph-list" id="toggleSidebar" style="cursor: pointer;"></i>
             </div>
             
-            <div class="sidebar-profil">
+            <div class="sidebar-profil" style="position: relative;">
                 {% block sidebar_profil %}{% endblock %}
+                
+                <!-- Menu Dropdown Foto Profil -->
+                <div class="menu-profil-dropdown" id="menuProfilDropdown" style="display:none; position:absolute; top:110px; left:50%; transform:translateX(-50%); background:white; border:1px solid #cbd5e1; border-radius:12px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index:999; width:170px; text-align:left; overflow:hidden; font-family:'Inter',sans-serif;">
+                    <button onclick="pilihFotoBaru()" style="width:100%; padding:0.75rem 1rem; background:none; border:none; text-align:left; cursor:pointer; font-family:inherit; font-size:0.875rem; color:#334155; display:flex; align-items:center; gap:0.6rem; transition:background 0.2s; border-bottom:1px solid #f1f5f9; outline: none;">
+                        <i class="ph ph-upload-simple" style="font-size:1.1rem; color:#64748b;"></i>
+                        <span>Unggah Foto</span>
+                    </button>
+                    <button id="btnHapusFotoProfilMenu" onclick="hapusFotoProfil(event)" style="width:100%; padding:0.75rem 1rem; background:none; border:none; text-align:left; cursor:pointer; font-family:inherit; font-size:0.875rem; color:#ef4444; display:flex; align-items:center; gap:0.6rem; transition:background 0.2s; outline: none;">
+                        <i class="ph ph-trash" style="font-size:1.1rem; color:#ef4444;"></i>
+                        <span>Hapus Foto</span>
+                    </button>
+                </div>
             </div>
             
             <nav class="navigasi">
@@ -82,32 +94,207 @@
         </main>
     </div>
 
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+
+    <!-- Modal Crop Foto Profil -->
+    <div id="modalCropFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:#fff; border-radius:16px; padding:1.5rem; width:90%; max-width:460px; box-shadow:0 20px 50px rgba(0,0,0,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">Atur Posisi Foto Profil</h3>
+                <button id="btnTutupCrop" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+            </div>
+            <div style="text-align:center; margin-bottom:0.75rem;">
+                <span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-arrows-out"></i> Geser &amp; zoom foto untuk mengatur posisi</span>
+            </div>
+            <!-- Pratinjau bulat -->
+            <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-start; margin-bottom:1rem;">
+                <div style="flex:1; min-width:0;">
+                    <div style="max-height:280px; overflow:hidden; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc;">
+                        <img id="gambarCropper" style="max-width:100%; display:block;">
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+                    <div style="font-size:0.75rem; color:#64748b; margin-bottom:0.25rem;">Pratinjau</div>
+                    <div id="pratinjauCrop" style="width:80px; height:80px; border-radius:50%; overflow:hidden; border:3px solid #e2e8f0; background:#f1f5f9;"></div>
+                    <div style="width:50px; height:50px; border-radius:50%; overflow:hidden; border:2px solid #e2e8f0; background:#f1f5f9;" id="pratinjauCropKecil"></div>
+                </div>
+            </div>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                <button id="btnBatalCrop" style="padding:0.6rem 1.2rem; background:none; border:1px solid #cbd5e1; border-radius:8px; color:#475569; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">Batal</button>
+                <button id="btnSimpanCrop" style="padding:0.6rem 1.4rem; background:#3b82f6; border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="ph ph-check"></i> Simpan Foto
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cropper.js Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
     <!-- Script tambahan untuk modal/interaksi (jika ada) -->
     <script>
         document.getElementById('toggleSidebar').addEventListener('click', function() {
             document.getElementById('sidebar').classList.toggle('mini');
         });
 
+        let cropperInstance = null;
+
         function unggahFotoProfil(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 if (!file.type.startsWith('image/')) {
                     alert('File yang dipilih harus berupa gambar.');
+                    input.value = '';
                     return;
                 }
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('Ukuran file maksimal 5MB.');
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('Ukuran file maksimal 10MB.');
+                    input.value = '';
                     return;
                 }
 
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Tampilkan modal crop
+                    const modal = document.getElementById('modalCropFoto');
+                    const gambar = document.getElementById('gambarCropper');
+                    
+                    // Hancurkan instance lama jika ada
+                    if (cropperInstance) {
+                        cropperInstance.destroy();
+                        cropperInstance = null;
+                    }
+
+                    gambar.src = e.target.result;
+                    modal.style.display = 'flex';
+
+                    // Inisialisasi Cropper.js setelah gambar dimuat
+                    gambar.onload = function() {
+                        cropperInstance = new Cropper(gambar, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 1,
+                            restore: false,
+                            guides: false,
+                            center: false,
+                            highlight: false,
+                            cropBoxMovable: false,
+                            cropBoxResizable: false,
+                            toggleDragModeOnDblclick: false,
+                            preview: [
+                                document.getElementById('pratinjauCrop'),
+                                document.getElementById('pratinjauCropKecil')
+                            ],
+                        });
+                    };
+                };
+                reader.readAsDataURL(file);
+
+                // Reset input agar bisa pilih file yang sama lagi nanti
+                input.value = '';
+            }
+        }
+
+        function tutupModalCrop() {
+            document.getElementById('modalCropFoto').style.display = 'none';
+            if (cropperInstance) {
+                cropperInstance.destroy();
+                cropperInstance = null;
+            }
+            const input = document.getElementById('input-foto-profil');
+            if (input) {
+                input.value = '';
+            }
+        }
+
+        function klikFotoProfil(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('menuProfilDropdown');
+            if (!dropdown) return;
+            
+            // Tentukan apakah user memiliki foto profil kustom
+            const imgProfil = document.getElementById('gambar-profil-sidebar');
+            const btnHapus = document.getElementById('btnHapusFotoProfilMenu');
+            
+            let punyaFotoKustom = false;
+            if (imgProfil) {
+                const src = imgProfil.getAttribute('src') || '';
+                // Jika src berisi '/static/uploads/profil/' berarti punya foto kustom
+                if (src.includes('/static/uploads/profil/')) {
+                    punyaFotoKustom = true;
+                }
+            }
+            
+            if (btnHapus) {
+                btnHapus.style.display = punyaFotoKustom ? 'flex' : 'none';
+            }
+            
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function pilihFotoBaru() {
+            const input = document.getElementById('input-foto-profil');
+            if (input) {
+                input.click();
+            }
+        }
+
+        function hapusFotoProfil(event) {
+            if (event) event.stopPropagation();
+            if (confirm('Apakah Anda yakin ingin menghapus foto profil?')) {
+                fetch('/api/hapus_foto_profil', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Foto profil berhasil dihapus!');
+                        window.location.reload();
+                    } else {
+                        alert('Gagal menghapus: ' + (data.error || 'Terjadi kesalahan.'));
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Terjadi kesalahan jaringan.');
+                });
+            }
+        }
+
+        // Tutup dropdown jika klik di luar
+        document.addEventListener('click', function() {
+            const dropdown = document.getElementById('menuProfilDropdown');
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        document.getElementById('btnTutupCrop').addEventListener('click', tutupModalCrop);
+        document.getElementById('btnBatalCrop').addEventListener('click', tutupModalCrop);
+
+        document.getElementById('btnSimpanCrop').addEventListener('click', function() {
+            if (!cropperInstance) return;
+
+            const btnSimpan = document.getElementById('btnSimpanCrop');
+            btnSimpan.disabled = true;
+            btnSimpan.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Menyimpan...';
+
+            // Ambil canvas hasil crop dengan ukuran 300x300 piksel
+            const canvas = cropperInstance.getCroppedCanvas({
+                width: 300,
+                height: 300,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+
+            canvas.toBlob(function(blob) {
                 const formData = new FormData();
-                formData.append('foto_profil', file);
-
-                const overlay = document.querySelector('.overlay-foto');
-                if (overlay) {
-                    overlay.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size: 1.5rem; color: white;"></i>';
-                    overlay.style.opacity = '1';
-                }
+                formData.append('foto_profil', blob, 'foto_profil.jpg');
 
                 fetch('/api/upload_foto_profil', {
                     method: 'POST',
@@ -116,45 +303,42 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // Update gambar di sidebar
                         const img = document.getElementById('gambar-profil-sidebar');
+                        const newSrc = '/static/uploads/profil/' + data.filename + '?t=' + Date.now();
                         if (img) {
-                            img.src = '/static/uploads/profil/' + data.filename + '?t=' + Date.now();
+                            img.src = newSrc;
                         } else {
                             const wadah = document.querySelector('.profil-img');
                             if (wadah) {
                                 const inisial = document.getElementById('inisial-profil-sidebar');
                                 if (inisial) inisial.remove();
-                                
+
                                 const newImg = document.createElement('img');
                                 newImg.id = 'gambar-profil-sidebar';
-                                newImg.src = '/static/uploads/profil/' + data.filename + '?t=' + Date.now();
+                                newImg.src = newSrc;
                                 newImg.alt = 'Profil';
-                                newImg.style.width = '80px';
-                                newImg.style.height = '80px';
-                                newImg.style.borderRadius = '50%';
-                                newImg.style.objectFit = 'cover';
-                                
+                                newImg.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;';
                                 wadah.insertBefore(newImg, wadah.firstChild);
                             }
                         }
+                        tutupModalCrop();
                         alert('Foto profil berhasil diperbarui!');
                     } else {
-                        alert('Gagal mengunggah foto profil: ' + (data.error || 'Terjadi kesalahan.'));
+                        alert('Gagal mengunggah: ' + (data.error || 'Terjadi kesalahan.'));
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
+                .catch(() => {
                     alert('Terjadi kesalahan koneksi saat mengunggah foto profil.');
                 })
                 .finally(() => {
-                    if (overlay) {
-                        overlay.innerHTML = '<i class="ph ph-camera" style="font-size: 1.5rem; color: white;"></i>';
-                        overlay.style.opacity = '';
-                    }
+                    btnSimpan.disabled = false;
+                    btnSimpan.innerHTML = '<i class="ph ph-check"></i> Simpan Foto';
                 });
-            }
-        }
+            }, 'image/jpeg', 0.92);
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
+

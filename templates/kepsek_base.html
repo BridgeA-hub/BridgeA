@@ -2,7 +2,7 @@
 
 {% block sidebar_profil %}
     <div style="font-weight: 700; margin-bottom: 0.5rem; text-align: center; color: var(--hitam-teks);">Kepala Sekolah</div>
-    <div class="profil-img" onclick="document.getElementById('input-foto-profil').click();" title="Klik untuk mengubah foto profil" style="background-color: transparent; border-radius: 50%; position: relative;">
+    <div class="profil-img" onclick="klikFotoProfil(event)" title="Klik untuk mengubah foto profil" style="background-color: transparent; border-radius: 50%; position: relative;">
         {% if session.get('logged_in_user', {}).get('foto_profil') %}
             <img id="gambar-profil-sidebar" src="{{ url_for('static', filename='uploads/profil/' ~ session.get('logged_in_user').get('foto_profil')) }}" alt="Profil" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
         {% else %}

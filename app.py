@@ -1012,6 +1012,42 @@ def api_upload_foto_profil():
         except Exception as e:
             return jsonify({'error': f"Gagal memperbarui database: {str(e)}"}), 500
 
+@aplikasi.route('/api/hapus_foto_profil', methods=['POST'])
+def api_hapus_foto_profil():
+    logged_in = session.get('logged_in_user')
+    role = session.get('role')
+    
+    if not logged_in or not role:
+        return jsonify({'error': 'Sesi tidak valid atau telah kedaluwarsa'}), 401
+        
+    user_id = logged_in.get('id')
+    role_collection = 'admin' if role == 'admin' else ('kepsek' if role == 'kepala-sekolah' else 'guru')
+    
+    # Cek jika ada foto profil saat ini, hapus filenya
+    current_foto = logged_in.get('foto_profil')
+    if current_foto:
+        filepath = os.path.join(aplikasi.config['UPLOAD_PROFIL_FOLDER'], current_foto)
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+                
+    try:
+        # Update nama file foto di Firestore jadi None/null
+        db.collection(role_collection).document(user_id).update({
+            'foto_profil': None
+        })
+        
+        # Update data user di Flask session
+        logged_in['foto_profil'] = None
+        session['logged_in_user'] = logged_in
+        session.modified = True
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': f"Gagal memperbarui database: {str(e)}"}), 500
+
 @aplikasi.route('/api/simpan_feedback', methods=['POST'])
 def api_simpan_feedback():
     data_masuk = request.json

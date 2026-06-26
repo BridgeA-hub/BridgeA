@@ -1,7 +1,7 @@
 {% extends 'dashboard_base.html' %}
 
 {% block sidebar_profil %}
-    <div class="profil-img" onclick="document.getElementById('input-foto-profil').click();" title="Klik untuk mengubah foto profil" style="background-color: var(--warna-oranye); position: relative;">
+    <div class="profil-img" onclick="klikFotoProfil(event)" title="Klik untuk mengubah foto profil" style="background-color: var(--warna-oranye); position: relative;">
         {% if session.get('logged_in_user', {}).get('foto_profil') %}
             <img id="gambar-profil-sidebar" src="{{ url_for('static', filename='uploads/profil/' ~ session.get('logged_in_user').get('foto_profil')) }}" alt="Profil" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
         {% else %}
