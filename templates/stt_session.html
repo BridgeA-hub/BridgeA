@@ -34,6 +34,10 @@
         })();
     </script>
     <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         :root {
             --bg-color: #f1f5f9;
             --putih: #ffffff;
@@ -51,16 +55,19 @@
             margin: 0;
             padding: 0;
             color: var(--teks-utama);
+            overflow-x: hidden;
+            width: 100%;
         }
 
         /* Header Putih */
         .header-putih {
             background-color: var(--putih);
-            padding: 0.4rem 3rem;
+            padding: 0.5rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            width: 100%;
         }
 
         .logo-teks {
@@ -150,35 +157,39 @@
 
         /* Main Container */
         .wadah-utama {
-            padding: 2rem 3rem;
-            max-width: 1400px;
+            padding: 1.5rem 2rem;
+            max-width: 100%;
             margin: 0 auto;
+            width: 100%;
         }
 
         .subjudul {
             color: var(--teks-sekunder);
-            font-size: 1.3rem;
-            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            margin-bottom: 1.25rem;
             font-weight: 600;
         }
 
         .layout-grid {
             display: flex;
             gap: 1.5rem;
+            width: 100%;
         }
 
         .kolom-kiri {
-            flex: 2;
+            flex: 1.8;
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
+            min-width: 0;
         }
 
         .kolom-kanan {
-            flex: 1;
+            flex: 1.2;
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
+            min-width: 0;
         }
 
         /* Cards */
@@ -506,6 +517,26 @@
         .modal-body .paragraf-riwayat {
             max-height: none;
         }
+
+        @media (max-width: 1024px) {
+            .layout-grid {
+                flex-direction: column;
+            }
+            .kolom-kiri, .kolom-kanan {
+                flex: 1;
+                width: 100%;
+            }
+            .header-putih {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+                text-align: center;
+            }
+            .header-kanan {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 
@@ -513,7 +544,7 @@
 
     <header class="header-putih">
         <div class="logo-teks">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="BridgeA Logo" style="height: 100px; width: auto; vertical-align: middle;">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="BridgeA Logo" style="height: 48px; width: auto; vertical-align: middle;">
         </div>
         <div class="header-kanan">
             <select id="pilihMic" class="dropdown-opsi" style="padding: 0.55rem; border-radius: 8px; border: 1px solid var(--abu-border); font-weight: 600; font-family: 'Inter', sans-serif; color: var(--teks-utama); background-color: var(--putih); cursor: pointer; outline: none; max-width: 180px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="Pilih Mikrofon">
