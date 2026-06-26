@@ -1,10 +1,18 @@
 {% extends 'dashboard_base.html' %}
 
 {% block sidebar_profil %}
-    <div class="profil-img">
-        {{ session.get('logged_in_user', {}).get('nama')[:2]|upper if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nama') else 'AD' }}
+    <div class="profil-img" onclick="document.getElementById('input-foto-profil').click();" title="Klik untuk mengubah foto profil" style="background-color: var(--warna-oranye); position: relative;">
+        {% if session.get('logged_in_user', {}).get('foto_profil') %}
+            <img id="gambar-profil-sidebar" src="{{ url_for('static', filename='uploads/profil/' ~ session.get('logged_in_user').get('foto_profil')) }}" alt="Profil" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+        {% else %}
+            <span id="inisial-profil-sidebar">{{ session.get('logged_in_user', {}).get('nama')[:2]|upper if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nama') else 'AD' }}</span>
+        {% endif %}
         <div class="status-dot"></div>
+        <div class="overlay-foto" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; color: white;">
+            <i class="ph ph-camera" style="font-size: 1.5rem; position: static; color: white;"></i>
+        </div>
     </div>
+    <input type="file" id="input-foto-profil" style="display: none;" accept="image/*" onchange="unggahFotoProfil(this)">
     <div class="profil-nama">{{ session.get('logged_in_user', {}).get('nama') if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nama') else 'Nama Admin' }}</div>
     <div class="profil-nip">NIP. {{ session.get('logged_in_user', {}).get('nip') if session.get('logged_in_user') and session.get('logged_in_user', {}).get('nip') else '-' }}</div>
 {% endblock %}

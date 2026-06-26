@@ -98,6 +98,12 @@ body.dasbor-body {
     color: white;
     font-size: 1.5rem;
     font-weight: 700;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.profil-img:hover .overlay-foto {
+    opacity: 1 !important;
 }
 
 .status-dot {

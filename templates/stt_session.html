@@ -7,6 +7,32 @@
     <title>BridgeA - Sesi Pembelajaran</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        // Verifikasi sesi tab tunggal sebelum merender halaman
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const path = window.location.pathname;
+            
+            let loginUrl = '/';
+            if (path.startsWith('/admin')) {
+                loginUrl = '/login/admin';
+            } else if (path.startsWith('/guru')) {
+                loginUrl = '/login/guru';
+            } else if (path.startsWith('/kepsek')) {
+                loginUrl = '/login/kepala-sekolah';
+            }
+            
+            if (urlParams.get('login') === 'success') {
+                sessionStorage.setItem('tab_session_active', 'true');
+                const cleanUrl = window.location.origin + path;
+                window.history.replaceState({}, document.title, cleanUrl);
+            } else {
+                if (sessionStorage.getItem('tab_session_active') !== 'true') {
+                    window.location.href = loginUrl;
+                }
+            }
+        })();
+    </script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -173,6 +199,32 @@
             justify-content: center;
             align-items: center;
             min-height: 150px;
+        }
+
+        .konten-scroll-translate {
+            width: 100%;
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+        }
+
+        .konten-scroll-translate::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .konten-scroll-translate::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 4px;
+        }
+
+        .konten-scroll-translate::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
         }
 
         .teks-inggris {
@@ -489,8 +541,10 @@
             <!-- Kolom Kiri -->
             <div class="kolom-kiri">
                 <div class="kartu kartu-teks-besar">
-                    <div id="teksEnglish" class="teks-inggris"><span class="highlight">HOW</span> are you today?</div>
-                    <div id="teksIndonesian" class="teks-indo">= Apa kabar hari ini?</div>
+                    <div class="konten-scroll-translate">
+                        <div id="teksEnglish" class="teks-inggris"><span class="highlight">HOW</span> are you today?</div>
+                        <div id="teksIndonesian" class="teks-indo">= Apa kabar hari ini?</div>
+                    </div>
                 </div>
 
                 <div class="kartu">

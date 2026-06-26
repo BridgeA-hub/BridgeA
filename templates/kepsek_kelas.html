@@ -9,7 +9,7 @@
         
         <form action="{{ url_for('kepsek_kelas') }}" method="GET" style="margin-bottom: 1.5rem; max-width: 320px;">
             <div style="position: relative; display: flex; align-items: center;">
-                <input type="text" name="q" placeholder="Cari Kelas (Ketik Nama Kelas atau Guru)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
+                <input type="text" name="q" placeholder="Cari Kelas (Ketik Nama Kelas atau Guru)" autocomplete="off" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
                 <button type="submit" style="display: none;"></button>
             </div>
         </form>

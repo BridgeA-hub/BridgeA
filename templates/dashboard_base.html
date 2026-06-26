@@ -3,13 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BridgeSign - Dashboard{% endblock %}</title>
+    <title>{% block title %}BridgeA - Dashboard{% endblock %}</title>
     <!-- Include main style variables -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Ikon Phosphor -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        // Verifikasi sesi tab tunggal sebelum merender halaman
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const path = window.location.pathname;
+            
+            let loginUrl = '/';
+            if (path.startsWith('/admin')) {
+                loginUrl = '/login/admin';
+            } else if (path.startsWith('/guru')) {
+                loginUrl = '/login/guru';
+            } else if (path.startsWith('/kepsek')) {
+                loginUrl = '/login/kepala-sekolah';
+            }
+            
+            if (urlParams.get('login') === 'success') {
+                sessionStorage.setItem('tab_session_active', 'true');
+                const cleanUrl = window.location.origin + path;
+                window.history.replaceState({}, document.title, cleanUrl);
+            } else {
+                if (sessionStorage.getItem('tab_session_active') !== 'true') {
+                    window.location.href = loginUrl;
+                }
+            }
+        })();
+    </script>
 </head>
 <body class="dasbor-body">
     <!-- Header Atas -->
@@ -44,7 +70,7 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a href="{{ url_for('logout') }}" class="tombol-keluar">
+                <a href="{{ url_for('logout') }}" class="tombol-keluar" onclick="sessionStorage.clear();">
                     <i class="ph ph-arrow-left"></i> <span>Keluar</span>
                 </a>
             </div>
@@ -61,6 +87,73 @@
         document.getElementById('toggleSidebar').addEventListener('click', function() {
             document.getElementById('sidebar').classList.toggle('mini');
         });
+
+        function unggahFotoProfil(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (!file.type.startsWith('image/')) {
+                    alert('File yang dipilih harus berupa gambar.');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Ukuran file maksimal 5MB.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('foto_profil', file);
+
+                const overlay = document.querySelector('.overlay-foto');
+                if (overlay) {
+                    overlay.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size: 1.5rem; color: white;"></i>';
+                    overlay.style.opacity = '1';
+                }
+
+                fetch('/api/upload_foto_profil', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const img = document.getElementById('gambar-profil-sidebar');
+                        if (img) {
+                            img.src = '/static/uploads/profil/' + data.filename + '?t=' + Date.now();
+                        } else {
+                            const wadah = document.querySelector('.profil-img');
+                            if (wadah) {
+                                const inisial = document.getElementById('inisial-profil-sidebar');
+                                if (inisial) inisial.remove();
+                                
+                                const newImg = document.createElement('img');
+                                newImg.id = 'gambar-profil-sidebar';
+                                newImg.src = '/static/uploads/profil/' + data.filename + '?t=' + Date.now();
+                                newImg.alt = 'Profil';
+                                newImg.style.width = '80px';
+                                newImg.style.height = '80px';
+                                newImg.style.borderRadius = '50%';
+                                newImg.style.objectFit = 'cover';
+                                
+                                wadah.insertBefore(newImg, wadah.firstChild);
+                            }
+                        }
+                        alert('Foto profil berhasil diperbarui!');
+                    } else {
+                        alert('Gagal mengunggah foto profil: ' + (data.error || 'Terjadi kesalahan.'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan koneksi saat mengunggah foto profil.');
+                })
+                .finally(() => {
+                    if (overlay) {
+                        overlay.innerHTML = '<i class="ph ph-camera" style="font-size: 1.5rem; color: white;"></i>';
+                        overlay.style.opacity = '';
+                    }
+                });
+            }
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

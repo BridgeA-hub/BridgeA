@@ -1,6 +1,22 @@
 {% extends 'guru_base.html' %}
 
 {% block konten_dashboard %}
+<style>
+    /* Sembunyikan indikator bawaan webkit agar tidak tumpang tindih dengan caret icon */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        background: transparent;
+        bottom: 0;
+        color: transparent;
+        cursor: pointer;
+        height: auto;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: auto;
+    }
+</style>
+
 <div class="header-tabel" style="margin-bottom: 1.5rem; border-bottom: none; display: block;">
     <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Riwayat Mengajar</h2>
     
@@ -13,17 +29,17 @@
             <i class="ph ph-caret-down" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
         </div>
         
-        <div class="input-dengan-ikon" style="width: 200px;">
-            <i class="ph ph-calendar-blank"></i>
-            <input type="text" class="input-kotak" placeholder="Pilih Tanggal" style="padding-left: 2.5rem; background-color: var(--putih);">
-            <i class="ph ph-caret-down" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+        <div class="input-dengan-ikon" style="width: 200px; position: relative;">
+            <i class="ph ph-calendar-blank" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 5;"></i>
+            <input type="text" id="filter-tanggal" class="input-kotak" placeholder="Pilih Tanggal" onfocus="(this.type='date'); this.showPicker()" onblur="if(!this.value) this.type='text'" style="padding-left: 2.5rem; background-color: var(--putih); cursor: pointer;">
+            <i class="ph ph-caret-down" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 5;"></i>
         </div>
     </div>
 </div>
 
 <div class="grid-kartu-riwayat" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem;">
     {% for riwayat in daftar_riwayat %}
-    <div class="kartu-riwayat" style="background-color: var(--putih); border: 1px solid var(--warna-batas); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
+    <div class="kartu-riwayat" data-tanggal="{{ riwayat.tanggal_iso }}" style="background-color: var(--putih); border: 1px solid var(--warna-batas); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
         <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--warna-batas); display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.1rem;">
                 <i class="ph ph-calendar-blank" style="font-size: 1.2rem;"></i> {{ riwayat.nama_kelas | default('Sesi STT', true) }}
@@ -117,7 +133,7 @@
     </div>
 </div>
 
-<script id="riwayat-store-data" type="application/json">
+<script id="riwayat-store-data" type="application/json-template">
 {
     {% for riwayat in daftar_riwayat %}
     "{{ riwayat.id }}": {
@@ -264,6 +280,55 @@
         } else {
             alert("Data tidak ditemukan");
         }
+    }
+
+    // Filter kartu riwayat berdasarkan tanggal yang dipilih
+    const filterTanggal = document.getElementById('filter-tanggal');
+    if (filterTanggal) {
+        filterTanggal.addEventListener('change', function() {
+            const selectedDate = this.value; // format: YYYY-MM-DD
+            const kartuRiwayat = document.querySelectorAll('.kartu-riwayat');
+            let adaYangCocok = false;
+            
+            kartuRiwayat.forEach(kartu => {
+                const kartuTanggal = kartu.getAttribute('data-tanggal');
+                if (!selectedDate || kartuTanggal === selectedDate) {
+                    kartu.style.display = 'block';
+                    adaYangCocok = true;
+                } else {
+                    kartu.style.display = 'none';
+                }
+            });
+            
+            // Tampilkan pesan kosong jika tidak ada riwayat pada tanggal terpilih
+            let wadahKosong = document.getElementById('wadah-kosong-filter');
+            if (!adaYangCocok) {
+                if (!wadahKosong) {
+                    const grid = document.querySelector('.grid-kartu-riwayat');
+                    wadahKosong = document.createElement('div');
+                    wadahKosong.id = 'wadah-kosong-filter';
+                    wadahKosong.style.gridColumn = '1 / -1';
+                    wadahKosong.style.padding = '3rem';
+                    wadahKosong.style.textAlign = 'center';
+                    wadahKosong.style.color = 'var(--abu-teks)';
+                    wadahKosong.style.backgroundColor = 'var(--putih)';
+                    wadahKosong.style.border = '1px solid var(--warna-batas)';
+                    wadahKosong.style.borderRadius = '12px';
+                    wadahKosong.innerHTML = `
+                        <i class="ph ph-calendar-x" style="font-size: 3rem; margin-bottom: 1rem; color: #cbd5e1;"></i>
+                        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--hitam-teks);">Tidak Ada Riwayat</h3>
+                        <p>Tidak ada riwayat mengajar untuk tanggal yang dipilih.</p>
+                    `;
+                    grid.appendChild(wadahKosong);
+                } else {
+                    wadahKosong.style.display = 'block';
+                }
+            } else {
+                if (wadahKosong) {
+                    wadahKosong.style.display = 'none';
+                }
+            }
+        });
     }
 </script>
 {% endblock %}

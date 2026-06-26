@@ -15,7 +15,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-user" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="nama_guru" placeholder="Nama Lengkap Guru" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" name="nama_guru" placeholder="Nama Lengkap Guru" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
 
                 <!-- NIP Guru -->
@@ -23,7 +23,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-identification-card" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="nip" placeholder="NIP Guru (sebagai username)" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" name="nip" placeholder="NIP Guru (sebagai username)" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
 
                 <!-- No WhatsApp -->
@@ -31,7 +31,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #22c55e; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-whatsapp-logo" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="no_wa" placeholder="No. WhatsApp (Aktif)" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
+                    <input type="text" name="no_wa" placeholder="No. WhatsApp (Aktif)" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
                 </div>
 
                 <!-- Kata Sandi -->
@@ -39,7 +39,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-lock-key" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="password" placeholder="Kata Sandi Default" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
+                    <input type="text" name="password" placeholder="Kata Sandi Default" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
                 </div>
 
                 <button type="submit" style="width: 100%; background-color: #2563eb; color: white; border: none; border-radius: 6px; padding: 0.8rem; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: background-color 0.2s;">
@@ -54,7 +54,7 @@
             
             <form action="{{ url_for('kelola_guru') }}" method="GET" style="margin-bottom: 1.5rem; max-width: 320px;">
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="text" name="q" placeholder="Cari Guru (Ketik NIP atau Nama)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
+                    <input type="text" name="q" placeholder="Cari Guru (Ketik NIP atau Nama)" autocomplete="off" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
                     <button type="submit" style="display: none;"></button>
                 </div>
             </form>
@@ -120,7 +120,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-user" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_nama_guru" name="nama_guru" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" id="edit_nama_guru" name="nama_guru" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
             </div>
             <div style="margin-bottom: 1rem;">
@@ -129,7 +129,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-identification-card" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_nip" name="nip" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" id="edit_nip" name="nip" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
             </div>
             <div style="margin-bottom: 1rem;">
@@ -138,7 +138,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #22c55e; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-whatsapp-logo" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_no_wa" name="no_wa" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
+                    <input type="text" id="edit_no_wa" name="no_wa" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
                 </div>
             </div>
             <div style="margin-bottom: 1.5rem;">
@@ -147,7 +147,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-lock-key" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_password" name="password" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
+                    <input type="text" id="edit_password" name="password" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;">
                 </div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 1rem;">

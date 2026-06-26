@@ -15,7 +15,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-clipboard-text" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="nama_kelas" placeholder="Nama Kelas (Kelas XI - A)" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" name="nama_kelas" placeholder="Nama Kelas (Kelas XI - A)" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
 
                 <!-- Guru Pengajar -->
@@ -23,7 +23,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-chalkboard-teacher" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" name="guru_pengajar" placeholder="Pilih Guru Pengajar" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" name="guru_pengajar" placeholder="Pilih Guru Pengajar" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
 
                 <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #334155;">Tanggal / Jam</label>
@@ -56,7 +56,7 @@
             
             <form action="{{ url_for('kelola_kelas') }}" method="GET" style="margin-bottom: 1.5rem; max-width: 320px;">
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="text" name="q" placeholder="Cari Kelas (Ketik Nama Kelas atau Guru)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
+                    <input type="text" name="q" placeholder="Cari Kelas (Ketik Nama Kelas atau Guru)" autocomplete="off" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #334155; outline: none;" value="{{ request.args.get('q', '') }}">
                     <button type="submit" style="display: none;"></button>
                 </div>
             </form>
@@ -124,7 +124,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-clipboard-text" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_nama_kelas" name="nama_kelas" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" id="edit_nama_kelas" name="nama_kelas" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
             </div>
             
@@ -134,7 +134,7 @@
                     <div style="background-color: #f1f5f9; padding: 0.8rem; border-right: 1px solid #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; width: 45px;">
                         <i class="ph-fill ph-chalkboard-teacher" style="font-size: 1.1rem;"></i>
                     </div>
-                    <input type="text" id="edit_guru_pengajar" name="guru_pengajar" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
+                    <input type="text" id="edit_guru_pengajar" name="guru_pengajar" autocomplete="off" style="flex: 1; padding: 0.8rem; border: none; outline: none; font-size: 0.9rem; color: #334155;" required>
                 </div>
             </div>
             
