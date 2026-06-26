@@ -404,3 +404,9 @@ body {
     text-align: left;
 }
 
+/* Sembunyikan tombol bawaan browser untuk melihat password (seperti di MS Edge) */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
