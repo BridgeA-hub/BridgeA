@@ -38,6 +38,11 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads', 'modul')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 aplikasi.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Konfigurasi Upload Foto Profil
+UPLOAD_PROFIL_FOLDER = os.path.join('static', 'uploads', 'profil')
+os.makedirs(UPLOAD_PROFIL_FOLDER, exist_ok=True)
+aplikasi.config['UPLOAD_PROFIL_FOLDER'] = UPLOAD_PROFIL_FOLDER
+
 # Set kredensial untuk Google Cloud Translation
 credentials_path = 'firebase-credentials.json'
 if os.path.exists(credentials_path):
@@ -174,7 +179,7 @@ def login_admin():
         if admin_ditemukan:
             session['logged_in_user'] = admin_data
             session['role'] = 'admin'
-            return redirect(url_for('dashboard_admin'))
+            return redirect(url_for('dashboard_admin', login='success'))
         else:
             error = True
             
@@ -199,7 +204,7 @@ def login_kepsek():
         if kepsek_ditemukan:
             session['logged_in_user'] = kepsek_data
             session['role'] = 'kepala-sekolah'
-            return redirect(url_for('dashboard_kepsek'))
+            return redirect(url_for('dashboard_kepsek', login='success'))
         else:
             error = True
             
@@ -224,7 +229,7 @@ def login_guru():
         if guru_ditemukan:
             session['logged_in_user'] = guru_data
             session['role'] = 'guru'
-            return redirect(url_for('dashboard_guru'))
+            return redirect(url_for('dashboard_guru', login='success'))
         else:
             error = True
             
@@ -842,10 +847,12 @@ def guru_riwayat_kelas(nama_kelas):
             data_sesi['tanggal_format'] = f"{nama_hari}, {waktu.strftime('%d')} {nama_bulan} {waktu.strftime('%Y')} {waktu.strftime('%H:%M')}"
             data_sesi['tanggal_saja'] = f"{nama_hari}, {waktu.strftime('%d')} {nama_bulan} {waktu.strftime('%Y')}"
             data_sesi['waktu_saja'] = waktu.strftime('%H:%M')
+            data_sesi['tanggal_iso'] = waktu.strftime('%Y-%m-%d')
         else:
             data_sesi['tanggal_format'] = 'Waktu tidak tersedia'
             data_sesi['tanggal_saja'] = '-'
             data_sesi['waktu_saja'] = '-'
+            data_sesi['tanggal_iso'] = ''
             
         # Potong teks buat ditampilkan sedikit aja (preview) di kartu
         if 'riwayat' in data_sesi and len(data_sesi['riwayat']) > 0:
@@ -959,6 +966,51 @@ def api_simpan_riwayat():
         return jsonify({'success': True, 'id': dokumen_baru.id})
     except Exception as error_nya:
         return jsonify({'error': str(error_nya)}), 500
+
+@aplikasi.route('/api/upload_foto_profil', methods=['POST'])
+def api_upload_foto_profil():
+    logged_in = session.get('logged_in_user')
+    role = session.get('role')
+    
+    if not logged_in or not role:
+        return jsonify({'error': 'Sesi tidak valid atau telah kedaluwarsa'}), 401
+        
+    if 'foto_profil' not in request.files:
+        return jsonify({'error': 'Tidak ada file yang diunggah'}), 400
+        
+    file = request.files['foto_profil']
+    if file.filename == '':
+        return jsonify({'error': 'Nama file kosong'}), 400
+        
+    if file:
+        # Validasi ekstensi file
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
+            return jsonify({'error': 'Format file tidak didukung. Gunakan JPG, JPEG, PNG, WEBP, atau GIF.'}), 400
+            
+        user_id = logged_in.get('id')
+        role_collection = 'admin' if role == 'admin' else ('kepsek' if role == 'kepala-sekolah' else 'guru')
+        
+        filename = f"{role}_{user_id}.{ext}"
+        filepath = os.path.join(aplikasi.config['UPLOAD_PROFIL_FOLDER'], filename)
+        
+        # Simpan file ke direktori lokal
+        file.save(filepath)
+        
+        try:
+            # Update nama file foto di Firestore
+            db.collection(role_collection).document(user_id).update({
+                'foto_profil': filename
+            })
+            
+            # Update data user di Flask session
+            logged_in['foto_profil'] = filename
+            session['logged_in_user'] = logged_in
+            session.modified = True
+            
+            return jsonify({'success': True, 'filename': filename})
+        except Exception as e:
+            return jsonify({'error': f"Gagal memperbarui database: {str(e)}"}), 500
 
 @aplikasi.route('/api/simpan_feedback', methods=['POST'])
 def api_simpan_feedback():

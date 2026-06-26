@@ -1,0 +1,16 @@
+# Kredensial dan Kunci Keamanan (Paling Penting - Jangan di-upload!)
+firebase-credentials.json
+.env
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Upload Lokal
+static/uploads/
+
+# Folder Konfigurasi Editor / IDE
+.vscode/
+.idea/
+.gemini/
